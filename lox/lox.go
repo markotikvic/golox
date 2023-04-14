@@ -7,24 +7,29 @@ import (
 	"os"
 
 	"golox/lox/ast"
+	"golox/lox/interpreter"
 	reporter "golox/lox/reporter"
 	"golox/lox/scanner"
 )
 
 type Lox struct {
-	args     []string
-	hadError bool
-	scanner  *scanner.Scanner
-	reporter *reporter.ErrorReporter
+	args            []string
+	hadError        bool
+	hadRuntimeError bool
+	scanner         *scanner.Scanner
+	interp          *interpreter.Interpreter
+	reporter        *reporter.ErrorReporter
 }
 
 func NewLox(args []string) *Lox {
 	reporter := reporter.NewErrorReporter()
 	return &Lox{
-		args:     args,
-		hadError: false,
-		scanner:  scanner.NewScanner(reporter),
-		reporter: reporter,
+		args:            args,
+		hadError:        false,
+		hadRuntimeError: false,
+		scanner:         scanner.NewScanner(reporter),
+		interp:          interpreter.NewInterpreter(reporter),
+		reporter:        reporter,
 	}
 }
 
@@ -74,6 +79,9 @@ func (lox *Lox) runScript(script string) error {
 	if lox.hadError {
 		os.Exit(65)
 	}
+	if lox.hadRuntimeError {
+		os.Exit(70)
+	}
 	return nil
 }
 
@@ -86,7 +94,8 @@ func (lox *Lox) run(source string) {
 		lox.hadError = true
 		return
 	}
-	fmt.Println(ast.NewPrinter().Print(tree))
+	lox.interp.Interpret(tree)
+	//fmt.Println(ast.NewPrinter().Print(tree))
 }
 
 func usage() {
