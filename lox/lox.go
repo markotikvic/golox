@@ -5,21 +5,24 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	reporter "golox/lox/reporter"
+	"golox/lox/scanner"
 )
 
 type Lox struct {
 	args     []string
 	hadError bool
-	scanner  *Scanner
-	reporter *ErrorReporter
+	scanner  *scanner.Scanner
+	reporter *reporter.ErrorReporter
 }
 
 func NewLox(args []string) *Lox {
-	reporter := newErrorReporter()
+	reporter := reporter.NewErrorReporter()
 	return &Lox{
 		args:     args,
 		hadError: false,
-		scanner:  newScanner(reporter),
+		scanner:  scanner.NewScanner(reporter),
 		reporter: reporter,
 	}
 }
@@ -31,9 +34,9 @@ func (lox *Lox) Exec() {
 	case 1:
 		err = lox.runPrompt()
 	case 2:
-		err = lox.runFile(lox.args[1])
+		err = lox.runScript(lox.args[1])
 	default:
-		usage(os.Args)
+		usage()
 		os.Exit(64)
 	}
 
@@ -60,7 +63,7 @@ func (lox *Lox) runPrompt() error {
 	return nil
 }
 
-func (lox *Lox) runFile(script string) error {
+func (lox *Lox) runScript(script string) error {
 	source, err := os.ReadFile(script)
 	if err != nil {
 		err = fmt.Errorf("read file: %w", err)
@@ -74,13 +77,13 @@ func (lox *Lox) runFile(script string) error {
 }
 
 func (lox *Lox) run(source string) {
-	lox.scanner.reset()
-	tokens := lox.scanner.scanTokens(source)
+	lox.scanner.Reset()
+	tokens := lox.scanner.ScanTokens(source)
 	for _, tok := range tokens {
 		fmt.Println(tok)
 	}
 }
 
-func usage(args []string) {
+func usage() {
 	fmt.Println("usage: lox [script]")
 }

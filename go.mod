@@ -1,3 +1,3 @@
-module github.com/markotikvic/golox
+module golox
 
 go 1.16

@@ -1,4 +1,4 @@
-package lox
+package token
 
 import "fmt"
 
@@ -106,21 +106,21 @@ func (tt TokenType) String() string {
 
 // TODO Expand with starting and ending columns for better error reporting
 type Token struct {
-	toktype TokenType
-	lexeme  string
-	literal interface{}
-	line    int
+	Type    TokenType
+	Lexeme  string
+	Literal interface{}
+	Line    int
 }
 
 func (t *Token) String() string {
-	return fmt.Sprintf("%s %s", t.toktype, t.lexeme) // TODO: + literal
+	return fmt.Sprintf("%s %s", t.Type, t.Lexeme) // TODO: + literal
 }
 
-func newToken(kind TokenType, lexeme string, literal interface{}, line int) *Token {
+func NewToken(kind TokenType, lexeme string, literal interface{}, line int) *Token {
 	return &Token{
-		toktype: kind,
-		lexeme:  lexeme,
-		literal: literal,
-		line:    line,
+		Type:    kind,
+		Lexeme:  lexeme,
+		Literal: literal,
+		Line:    line,
 	}
 }

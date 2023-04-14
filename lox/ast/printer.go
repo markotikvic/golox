@@ -1,0 +1,62 @@
+package ast
+
+import (
+	"fmt"
+	"golox/lox/expression"
+	"strings"
+)
+
+type Printer struct {
+}
+
+func NewPrinter() *Printer {
+	return &Printer{}
+}
+
+func (p *Printer) Print(expr expression.Expression) string {
+	var e string
+	switch v := expr.(type) {
+	case *expression.Binary:
+		e = p.printBinaryExpr(v)
+	case *expression.Unary:
+		e = p.printUnaryExpr(v)
+	case *expression.Grouping:
+		e = p.printGroupingExpr(v)
+	case *expression.Literal:
+		e = p.printLiteralExpr(v)
+	default:
+		panic("unknown expression type")
+	}
+	return e
+}
+
+func (p *Printer) printBinaryExpr(expr *expression.Binary) string {
+	return p.parenthesize(expr.Operator.Lexeme, expr.Left, expr.Right)
+}
+
+func (p *Printer) printUnaryExpr(expr *expression.Unary) string {
+	return p.parenthesize(expr.Operator.Lexeme, expr.Right)
+}
+
+func (p *Printer) printGroupingExpr(expr *expression.Grouping) string {
+	return p.parenthesize("group", expr.Expr)
+}
+
+func (p *Printer) printLiteralExpr(expr *expression.Literal) string {
+	if expr.Value == nil {
+		return "null"
+	}
+	return fmt.Sprintf("%#v", expr.Value)
+}
+
+func (p *Printer) parenthesize(name string, exprs ...expression.Expression) string {
+	var sb strings.Builder
+	sb.WriteString("(")
+	sb.WriteString(name)
+	for _, expr := range exprs {
+		sb.WriteString(" ")
+		sb.WriteString(p.Print(expr))
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
