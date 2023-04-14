@@ -119,7 +119,8 @@ func (s *Scanner) scanToken() {
 		} else if s.isValidIdentifierStart(c) {
 			s.addIdentifierToken()
 		} else {
-			s.reporter.Report("TODO", s.line, s.source, fmt.Errorf("unexpected character: %c", rune(c)))
+			err := fmt.Errorf("unexpected character: %c", rune(c))
+			s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
 		}
 	}
 }
@@ -174,7 +175,8 @@ func (s *Scanner) skipComment() {
 func (s *Scanner) addStringToken() {
 	s.consumeString()
 	if s.isAtEnd() {
-		s.reporter.Report("TODO", s.line, s.source, fmt.Errorf("unterminated string litteral, started at line: %d", s.lastDoubleQuoteLine))
+		err := fmt.Errorf("unterminated string litteral, started at line %d", s.lastDoubleQuoteLine)
+		s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
 		return
 	}
 	s.advance()
@@ -204,7 +206,8 @@ func (s *Scanner) addNumberToken() {
 	numStr := s.source[s.start:s.current]
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
-		s.reporter.Report("TODO", s.line, s.source, fmt.Errorf("internal error: can't parse float: %s", numStr))
+		err := fmt.Errorf("internal error: can't parse float: %s", numStr)
+		s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
 		return
 	}
 	s.addTokenWithValue(token.Number, num)

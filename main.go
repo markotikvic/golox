@@ -2,16 +2,20 @@ package main
 
 import (
 	"fmt"
+	"golox/lox"
 	"golox/lox/ast"
 	"golox/lox/expression"
 	"golox/lox/token"
+	"os"
 )
 
 func main() {
-	printer := ast.NewPrinter()
-	//lox := lox.NewLox(os.Args)
-	//lox.Exec()
+	lox.NewLox(os.Args).Exec()
+	//astPrinterDemo()
+}
 
+func astPrinterDemo() {
+	printer := ast.NewPrinter()
 	expr := expression.NewBinary(
 		expression.NewUnary(
 			token.NewToken(token.Minus, "-", nil, 1),
