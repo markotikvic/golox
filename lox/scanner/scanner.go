@@ -84,7 +84,7 @@ func (s *Scanner) scanToken() {
 	case ',':
 		s.addToken(token.Comma)
 	case '.':
-		s.addMatchingDoubleTokenOr('.', token.DotDot, token.Dot)
+		s.addMatchingToken('.', token.DotDot, token.Dot)
 	case '-':
 		s.addToken(token.Minus)
 	case '+':
@@ -94,13 +94,13 @@ func (s *Scanner) scanToken() {
 	case '*':
 		s.addToken(token.Star)
 	case '!':
-		s.addMatchingDoubleTokenOr('=', token.BangEqual, token.Bang)
+		s.addMatchingToken('=', token.BangEqual, token.Bang)
 	case '=':
-		s.addMatchingDoubleTokenOr('=', token.EqualEqual, token.Equal)
+		s.addMatchingToken('=', token.EqualEqual, token.Equal)
 	case '<':
-		s.addMatchingDoubleTokenOr('=', token.LessEqual, token.Less)
+		s.addMatchingToken('=', token.LessEqual, token.Less)
 	case '>':
-		s.addMatchingDoubleTokenOr('=', token.GreaterEqual, token.Greater)
+		s.addMatchingToken('=', token.GreaterEqual, token.Greater)
 	case '/':
 		if s.peek() == '/' { // comment
 			s.skipComment()
@@ -120,7 +120,7 @@ func (s *Scanner) scanToken() {
 			s.addIdentifierToken()
 		} else {
 			err := fmt.Errorf("unexpected character: %c", rune(c))
-			s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
+			s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
 		}
 	}
 }
@@ -139,11 +139,11 @@ func (s *Scanner) peek() byte {
 	return nextChar
 }
 
-func (s *Scanner) peekNth(n int) byte {
+func (s *Scanner) peekNext() byte {
 	if s.isAtEnd() {
 		return 0
 	}
-	nextChar := s.source[s.current+n]
+	nextChar := s.source[s.current+1]
 	return nextChar
 }
 
@@ -157,7 +157,7 @@ func (s *Scanner) addTokenWithValue(toktype token.TokenType, literal interface{}
 	s.tokens = append(s.tokens, token.NewToken(toktype, text, literal, s.line))
 }
 
-func (s *Scanner) addMatchingDoubleTokenOr(char byte, doubleToken token.TokenType, singleToken token.TokenType) {
+func (s *Scanner) addMatchingToken(char byte, doubleToken token.TokenType, singleToken token.TokenType) {
 	if s.peek() == char {
 		s.advance()
 		s.addToken(doubleToken)
@@ -176,7 +176,7 @@ func (s *Scanner) addStringToken() {
 	s.consumeString()
 	if s.isAtEnd() {
 		err := fmt.Errorf("unterminated string litteral, started at line %d", s.lastDoubleQuoteLine)
-		s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
+		s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
 		return
 	}
 	s.advance()
@@ -199,7 +199,7 @@ func (s *Scanner) consumeString() {
 
 func (s *Scanner) addNumberToken() {
 	s.consumeNumber()
-	if s.peek() == '.' && unicode.IsDigit(rune(s.peekNth(1))) {
+	if s.peek() == '.' && unicode.IsDigit(rune(s.peekNext())) {
 		s.advance()
 		s.consumeNumber()
 	}
@@ -207,7 +207,7 @@ func (s *Scanner) addNumberToken() {
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
 		err := fmt.Errorf("internal error: can't parse float: %s", numStr)
-		s.reporter.Report(reporter.NewLocation("TODO", s.source, s.line, 0, 0), err)
+		s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
 		return
 	}
 	s.addTokenWithValue(token.Number, num)

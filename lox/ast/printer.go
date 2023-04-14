@@ -14,20 +14,20 @@ func NewPrinter() *Printer {
 }
 
 func (p *Printer) Print(expr expression.Expression) string {
-	var e string
+	var stringRep string
 	switch v := expr.(type) {
 	case *expression.Binary:
-		e = p.printBinaryExpr(v)
+		stringRep = p.printBinaryExpr(v)
 	case *expression.Unary:
-		e = p.printUnaryExpr(v)
+		stringRep = p.printUnaryExpr(v)
 	case *expression.Grouping:
-		e = p.printGroupingExpr(v)
+		stringRep = p.printGroupingExpr(v)
 	case *expression.Literal:
-		e = p.printLiteralExpr(v)
+		stringRep = p.printLiteralExpr(v)
 	default:
-		panic("unknown expression type")
+		fmt.Printf("unknown expression type: %v\n", v)
 	}
-	return e
+	return stringRep
 }
 
 func (p *Printer) printBinaryExpr(expr *expression.Binary) string {

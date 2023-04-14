@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"golox/lox/ast"
 	reporter "golox/lox/reporter"
 	"golox/lox/scanner"
 )
@@ -79,9 +80,13 @@ func (lox *Lox) runScript(script string) error {
 func (lox *Lox) run(source string) {
 	lox.scanner.Reset()
 	tokens := lox.scanner.ScanTokens(source)
-	for _, tok := range tokens {
-		fmt.Println(tok)
+	parser := ast.NewParser(tokens, lox.reporter)
+	tree, err := parser.Parse()
+	if err != nil {
+		lox.hadError = true
+		return
 	}
+	fmt.Println(ast.NewPrinter().Print(tree))
 }
 
 func usage() {

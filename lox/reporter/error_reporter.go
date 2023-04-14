@@ -9,21 +9,10 @@ func NewErrorReporter() *ErrorReporter {
 	return &ErrorReporter{}
 }
 
-type Location struct {
-	file, source                       string
-	lineNumber, startColumn, endColumn int
+func (r *ErrorReporter) ReportAtLocation(err error, file, source string, lineNr, startCol, endCol int) {
+	fmt.Printf("error: %s\nfile %s, line %d:\n\n\t%s\n", err, file, lineNr, source)
 }
 
-func NewLocation(file, source string, lineNr, startCol, endCol int) *Location {
-	return &Location{
-		file:        file,
-		source:      source,
-		lineNumber:  lineNr,
-		startColumn: startCol,
-		endColumn:   endCol,
-	}
-}
-
-func (r *ErrorReporter) Report(loc *Location, err error) {
-	fmt.Printf("error: %s\nfile %s, line %d:\n\n\t%s\n", err, loc.file, loc.lineNumber, loc.source)
+func (r *ErrorReporter) Report(err error) {
+	fmt.Printf("error: %s\n", err)
 }
