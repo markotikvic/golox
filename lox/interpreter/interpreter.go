@@ -3,28 +3,74 @@ package interpreter
 import (
 	"errors"
 	"fmt"
+	"golox/lox/environment"
 	"golox/lox/expression"
 	"golox/lox/reporter"
+	"golox/lox/statement"
 	"golox/lox/token"
 )
 
 type Interpreter struct {
 	reporter *reporter.ErrorReporter
+	env      *environment.Environment
 }
 
 func NewInterpreter(reporter *reporter.ErrorReporter) *Interpreter {
 	return &Interpreter{
 		reporter: reporter,
+		env:      environment.NewEnvironment(),
 	}
 }
 
-func (interp *Interpreter) Interpret(expr expression.Expression) error {
-	val, err := interp.evaluate(expr)
+func (interp *Interpreter) Interpret(statements []statement.Stmt) error {
+	for _, stmt := range statements {
+		err := interp.execute(stmt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (interp *Interpreter) execute(stmt statement.Stmt) error {
+	var err error
+	switch v := stmt.(type) {
+	case *statement.PrintStmt:
+		err = interp.executePrintStmt(v)
+	case *statement.ExpressionStmt:
+		err = interp.executeExprStmt(v)
+	case *statement.VarStmt:
+		err = interp.executeVarStmt(v)
+	}
+	return err
+}
+
+func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) error {
+	var (
+		val interface{}
+		err error
+	)
+	if stmt.Initializer != nil {
+		if val, err = interp.evaluate(stmt.Initializer); err != nil {
+			return err
+		}
+	}
+	interp.env.Define(stmt.Name.Lexeme, val)
+	return nil
+}
+
+func (interp *Interpreter) executePrintStmt(stmt *statement.PrintStmt) error {
+	val, err := interp.evaluate(stmt.Expression)
 	if err != nil {
 		return err
 	}
-	fmt.Println(interp.stringify(val))
+	fmt.Printf("%#v\n", val)
 	return nil
+}
+
+func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) error {
+	_, err := interp.evaluate(stmt.Expression)
+	return err
 }
 
 func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, error) {
@@ -37,6 +83,10 @@ func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, er
 		return interp.evaluateLiteralExpr(v)
 	case *expression.Grouping:
 		return interp.evaluateGroupingExpr(v)
+	case *expression.Variable:
+		return interp.evaluateVariableExpr(v)
+	case *expression.Assign:
+		return interp.evaluateAssignExpr(v)
 	default:
 		fmt.Println("unknown expression type")
 	}
@@ -147,6 +197,21 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 
 func (interp *Interpreter) evaluateGroupingExpr(expr *expression.Grouping) (interface{}, error) {
 	return interp.evaluate(expr.Expr)
+}
+
+func (interp *Interpreter) evaluateVariableExpr(expr *expression.Variable) (interface{}, error) {
+	return interp.env.Lookup(expr.Name)
+}
+
+func (interp *Interpreter) evaluateAssignExpr(expr *expression.Assign) (interface{}, error) {
+	val, err := interp.evaluate(expr)
+	if err != nil {
+		return nil, err
+	}
+	if err = interp.env.Assign(expr.Name, val); err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 func (interp *Interpreter) isTruthy(val interface{}) bool {

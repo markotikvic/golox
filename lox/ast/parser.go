@@ -1,9 +1,11 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 	"golox/lox/expression"
 	"golox/lox/reporter"
+	"golox/lox/statement"
 	"golox/lox/token"
 )
 
@@ -21,16 +23,103 @@ func NewParser(tokens []*token.Token, reporter *reporter.ErrorReporter) *Parser 
 	}
 }
 
-func (p *Parser) Parse() (expression.Expression, error) {
-	tree, err := p.expression()
+func (p *Parser) Parse() ([]statement.Stmt, error) {
+	statements := make([]statement.Stmt, 0)
+	for !p.isAtEnd() {
+		stmt, err := p.declaration()
+		if err != nil {
+			p.synchronize()
+			//return nil, err
+			continue
+		}
+		statements = append(statements, stmt)
+	}
+	return statements, nil
+
+	//tree, err := p.expression()
+	//if err != nil {
+	//return nil, err
+	//}
+	//return tree, nil
+}
+
+func (p *Parser) declaration() (statement.Stmt, error) {
+	if p.match(token.Var) {
+		return p.varDeclaration()
+
+	}
+	return p.statement()
+}
+
+func (p *Parser) varDeclaration() (statement.Stmt, error) {
+	name, err := p.consume(token.Identifier, "expect variable name")
 	if err != nil {
 		return nil, err
 	}
-	return tree, nil
+
+	var initializer expression.Expression = nil
+	if p.match(token.Equal) {
+		initializer, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = p.consume(token.Semicolon, "expect ';' after variable declaration"); err != nil {
+		return nil, err
+	}
+
+	return statement.NewVarStmt(name, initializer), nil
+}
+
+func (p *Parser) statement() (statement.Stmt, error) {
+	if p.match(token.Print) {
+		return p.printStmt()
+	}
+	return p.expressionStmt()
+}
+
+func (p *Parser) printStmt() (statement.Stmt, error) {
+	val, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.consume(token.Semicolon, "expect ';' after a value"); err != nil {
+		return nil, err
+	}
+	return statement.NewPrintStmt(val), nil
+}
+
+func (p *Parser) expressionStmt() (statement.Stmt, error) {
+	return nil, nil
 }
 
 func (p *Parser) expression() (expression.Expression, error) {
-	return p.equality()
+	//return p.equality()
+	return p.assignment()
+}
+
+func (p *Parser) assignment() (expression.Expression, error) {
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+	if p.match(token.Equal) {
+		equals := p.previous()
+		value, err := p.assignment()
+		if err != nil {
+			return nil, err
+		}
+
+		if v, ok := expr.(*expression.Variable); ok {
+			name := v.Name
+			return expression.NewAssign(name, value), nil
+		}
+
+		p.reporter.ReportAtLocation(errors.New("invalid assignment target"), "TODO", "", equals.Line, 0, 0)
+
+	}
+	return expr, nil
 }
 
 func (p *Parser) equality() (expression.Expression, error) {
@@ -149,6 +238,10 @@ func (p *Parser) primary() (expression.Expression, error) {
 
 	if p.match(token.Number, token.String) {
 		return expression.NewLiteral(p.previous().Literal), nil
+	}
+
+	if p.match(token.Identifier) {
+		return expression.NewVariable(p.previous()), nil
 	}
 
 	if p.match(token.LeftParen) {
