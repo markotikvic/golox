@@ -19,6 +19,7 @@ type Lox struct {
 	scanner         *scanner.Scanner
 	interp          *interpreter.Interpreter
 	reporter        *reporter.ErrorReporter
+	REPL            bool
 }
 
 func NewLox(args []string) *Lox {
@@ -30,6 +31,7 @@ func NewLox(args []string) *Lox {
 		scanner:         scanner.NewScanner(reporter),
 		interp:          interpreter.NewInterpreter(reporter),
 		reporter:        reporter,
+		REPL:            true,
 	}
 }
 
@@ -53,6 +55,7 @@ func (lox *Lox) Exec() {
 }
 
 func (lox *Lox) runPrompt() error {
+	lox.REPL = true
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf(">> ")
@@ -70,6 +73,7 @@ func (lox *Lox) runPrompt() error {
 }
 
 func (lox *Lox) runScript(script string) error {
+	lox.REPL = false
 	source, err := os.ReadFile(script)
 	if err != nil {
 		err = fmt.Errorf("read file: %w", err)

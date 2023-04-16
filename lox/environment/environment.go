@@ -23,23 +23,23 @@ func (env *Environment) Define(name string, value interface{}) {
 
 func (env *Environment) Lookup(name *token.Token) (interface{}, error) {
 	v, found := env.values[name.Lexeme]
-	if !found {
-		return nil, fmt.Errorf("undefined variable '%s'", name.Lexeme)
+	if found {
+		return v, nil
 	}
 	if env.enclosing != nil {
 		return env.enclosing.Lookup(name)
 	}
-	return v, nil
+	return nil, fmt.Errorf("undefined variable '%s'", name.Lexeme)
 }
 
 func (env *Environment) Assign(name *token.Token, value interface{}) error {
 	_, found := env.values[name.Lexeme]
-	if !found {
-		if env.enclosing != nil {
-			return env.enclosing.Assign(name, value)
-		}
-		return fmt.Errorf("undefined variable '%s'", name.Lexeme)
+	if found {
+		env.values[name.Lexeme] = value
+		return nil
 	}
-	env.values[name.Lexeme] = value
-	return nil
+	if env.enclosing != nil {
+		return env.enclosing.Assign(name, value)
+	}
+	return fmt.Errorf("undefined variable '%s'", name.Lexeme)
 }

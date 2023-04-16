@@ -41,6 +41,8 @@ func (interp *Interpreter) execute(stmt statement.Stmt) error {
 		err = interp.executeExprStmt(v)
 	case *statement.VarStmt:
 		err = interp.executeVarStmt(v)
+	case *statement.BlockStmt:
+		err = interp.executeBlockStmt(v)
 	}
 	return err
 }
@@ -69,8 +71,31 @@ func (interp *Interpreter) executePrintStmt(stmt *statement.PrintStmt) error {
 }
 
 func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) error {
-	_, err := interp.evaluate(stmt.Expression)
-	return err
+	val, err := interp.evaluate(stmt.Expression)
+	if err != nil {
+		return err
+	}
+	fmt.Println("eval:", val)
+	return nil
+}
+
+func (interp *Interpreter) executeBlockStmt(stmt *statement.BlockStmt) error {
+	env := environment.NewEnvironment(interp.env)
+	return interp.executeBlock(stmt.Statements, env)
+}
+
+func (interp *Interpreter) executeBlock(statements []statement.Stmt, env *environment.Environment) error {
+	previous := interp.env
+	defer interp.setEnvironment(previous)
+	interp.env = env
+
+	for _, s := range statements {
+		if err := interp.execute(s); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, error) {
@@ -317,4 +342,8 @@ func (interp *Interpreter) stringify(val interface{}) string {
 		return "null"
 	}
 	return fmt.Sprintf("%#v", val)
+}
+
+func (interp *Interpreter) setEnvironment(env *environment.Environment) {
+	interp.env = env
 }

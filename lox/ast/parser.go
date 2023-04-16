@@ -29,18 +29,11 @@ func (p *Parser) Parse() ([]statement.Stmt, error) {
 		stmt, err := p.declaration()
 		if err != nil {
 			p.synchronize()
-			//return nil, err
 			continue
 		}
 		statements = append(statements, stmt)
 	}
 	return statements, nil
-
-	//tree, err := p.expression()
-	//if err != nil {
-	//return nil, err
-	//}
-	//return tree, nil
 }
 
 func (p *Parser) declaration() (statement.Stmt, error) {
@@ -76,7 +69,32 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	if p.match(token.Print) {
 		return p.printStmt()
 	}
+	if p.match(token.LeftBrace) {
+		statements, err := p.block()
+		if err != nil {
+			return nil, err
+		}
+		return statement.NewBlockStmt(statements), nil
+	}
 	return p.expressionStmt()
+}
+
+func (p *Parser) block() ([]statement.Stmt, error) {
+	statements := make([]statement.Stmt, 0)
+
+	for !p.check(token.RightBrace) && !p.isAtEnd() {
+		decl, err := p.declaration()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, decl)
+	}
+
+	if _, err := p.consume(token.RightBrace, "expect '}' after a block"); err != nil {
+		return nil, err
+	}
+
+	return statements, nil
 }
 
 func (p *Parser) printStmt() (statement.Stmt, error) {
@@ -91,11 +109,17 @@ func (p *Parser) printStmt() (statement.Stmt, error) {
 }
 
 func (p *Parser) expressionStmt() (statement.Stmt, error) {
-	return nil, nil
+	val, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.consume(token.Semicolon, "expect ';' after a value"); err != nil {
+		return nil, err
+	}
+	return statement.NewExpressionStmt(val), nil
 }
 
 func (p *Parser) expression() (expression.Expression, error) {
-	//return p.equality()
 	return p.assignment()
 }
 
