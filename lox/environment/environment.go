@@ -1,7 +1,6 @@
 package environment
 
 import (
-	"fmt"
 	"golox/lox/token"
 )
 
@@ -21,25 +20,25 @@ func (env *Environment) Define(name string, value interface{}) {
 	env.values[name] = value
 }
 
-func (env *Environment) Lookup(name *token.Token) (interface{}, error) {
+func (env *Environment) Lookup(name *token.Token) (interface{}, bool) {
 	v, found := env.values[name.Lexeme]
 	if found {
-		return v, nil
+		return v, true
 	}
 	if env.enclosing != nil {
 		return env.enclosing.Lookup(name)
 	}
-	return nil, fmt.Errorf("undefined variable '%s'", name.Lexeme)
+	return nil, false
 }
 
-func (env *Environment) Assign(name *token.Token, value interface{}) error {
+func (env *Environment) Assign(name *token.Token, value interface{}) bool {
 	_, found := env.values[name.Lexeme]
 	if found {
 		env.values[name.Lexeme] = value
-		return nil
+		return true
 	}
 	if env.enclosing != nil {
 		return env.enclosing.Assign(name, value)
 	}
-	return fmt.Errorf("undefined variable '%s'", name.Lexeme)
+	return false
 }

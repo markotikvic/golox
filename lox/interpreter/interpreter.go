@@ -48,6 +48,12 @@ func (interp *Interpreter) execute(stmt statement.Stmt) error {
 }
 
 func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) error {
+	if _, defined := interp.env.Lookup(stmt.Name); defined {
+		err := fmt.Errorf("variable named '%s' already exists", stmt.Name.Lexeme)
+		interp.reporter.ReportAtLocation(err, "TODO", "", stmt.Name.Line, 0, 0)
+		return err
+	}
+
 	var (
 		val interface{}
 		err error
@@ -225,15 +231,21 @@ func (interp *Interpreter) evaluateGroupingExpr(expr *expression.Grouping) (inte
 }
 
 func (interp *Interpreter) evaluateVariableExpr(expr *expression.Variable) (interface{}, error) {
-	return interp.env.Lookup(expr.Name)
+	val, found := interp.env.Lookup(expr.Name)
+	if !found {
+		return nil, fmt.Errorf("undefined variable '%s'", expr.Name.Lexeme)
+	}
+
+	return val, nil
 }
 
 func (interp *Interpreter) evaluateAssignExpr(expr *expression.Assign) (interface{}, error) {
-	val, err := interp.evaluate(expr)
+	val, err := interp.evaluate(expr.Value)
 	if err != nil {
 		return nil, err
 	}
-	if err = interp.env.Assign(expr.Name, val); err != nil {
+	if ok := interp.env.Assign(expr.Name, val); !ok {
+		err = fmt.Errorf("undefined variable '%s'", expr.Name.Lexeme)
 		return nil, err
 	}
 	return val, nil
