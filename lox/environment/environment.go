@@ -6,12 +6,14 @@ import (
 )
 
 type Environment struct {
-	values map[string]interface{}
+	enclosing *Environment
+	values    map[string]interface{}
 }
 
-func NewEnvironment() *Environment {
+func NewEnvironment(enclosing *Environment) *Environment {
 	return &Environment{
-		values: make(map[string]interface{}),
+		enclosing: enclosing,
+		values:    make(map[string]interface{}),
 	}
 }
 
@@ -24,12 +26,18 @@ func (env *Environment) Lookup(name *token.Token) (interface{}, error) {
 	if !found {
 		return nil, fmt.Errorf("undefined variable '%s'", name.Lexeme)
 	}
+	if env.enclosing != nil {
+		return env.enclosing.Lookup(name)
+	}
 	return v, nil
 }
 
 func (env *Environment) Assign(name *token.Token, value interface{}) error {
 	_, found := env.values[name.Lexeme]
 	if !found {
+		if env.enclosing != nil {
+			return env.enclosing.Assign(name, value)
+		}
 		return fmt.Errorf("undefined variable '%s'", name.Lexeme)
 	}
 	env.values[name.Lexeme] = value

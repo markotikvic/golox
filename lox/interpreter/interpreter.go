@@ -18,7 +18,7 @@ type Interpreter struct {
 func NewInterpreter(reporter *reporter.ErrorReporter) *Interpreter {
 	return &Interpreter{
 		reporter: reporter,
-		env:      environment.NewEnvironment(),
+		env:      environment.NewEnvironment(nil),
 	}
 }
 
