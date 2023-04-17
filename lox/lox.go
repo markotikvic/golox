@@ -19,7 +19,6 @@ type Lox struct {
 	scanner         *scanner.Scanner
 	interp          *interpreter.Interpreter
 	reporter        *reporter.ErrorReporter
-	REPL            bool
 }
 
 func NewLox(args []string) *Lox {
@@ -31,7 +30,6 @@ func NewLox(args []string) *Lox {
 		scanner:         scanner.NewScanner(reporter),
 		interp:          interpreter.NewInterpreter(reporter),
 		reporter:        reporter,
-		REPL:            true,
 	}
 }
 
@@ -55,7 +53,6 @@ func (lox *Lox) Exec() {
 }
 
 func (lox *Lox) runPrompt() error {
-	lox.REPL = true
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf(">> ")
@@ -64,22 +61,21 @@ func (lox *Lox) runPrompt() error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("read line '%s': %w", line, err)
+			return fmt.Errorf("run prompt '%s': %w", line, err)
 		}
-		lox.run(line)
+		lox.run(line, true)
 		lox.hadError = false
 	}
 	return nil
 }
 
 func (lox *Lox) runScript(script string) error {
-	lox.REPL = false
 	source, err := os.ReadFile(script)
 	if err != nil {
-		err = fmt.Errorf("read file: %w", err)
+		err = fmt.Errorf("run script: %w", err)
 		return err
 	}
-	lox.run(string(source))
+	lox.run(string(source), false)
 	if lox.hadError {
 		os.Exit(65)
 	}
@@ -89,7 +85,7 @@ func (lox *Lox) runScript(script string) error {
 	return nil
 }
 
-func (lox *Lox) run(source string) {
+func (lox *Lox) run(source string, repl bool) {
 	lox.scanner.Reset()
 	tokens := lox.scanner.ScanTokens(source)
 	parser := ast.NewParser(tokens, lox.reporter)
@@ -98,7 +94,7 @@ func (lox *Lox) run(source string) {
 		lox.hadError = true
 		return
 	}
-	lox.interp.Interpret(tree)
+	lox.interp.Interpret(tree, repl)
 	//fmt.Println(ast.NewPrinter().Print(tree))
 }
 

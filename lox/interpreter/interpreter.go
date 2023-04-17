@@ -13,16 +13,19 @@ import (
 type Interpreter struct {
 	reporter *reporter.ErrorReporter
 	env      *environment.Environment
+	repl     bool
 }
 
 func NewInterpreter(reporter *reporter.ErrorReporter) *Interpreter {
 	return &Interpreter{
 		reporter: reporter,
 		env:      environment.NewEnvironment(nil),
+		repl:     false,
 	}
 }
 
-func (interp *Interpreter) Interpret(statements []statement.Stmt) error {
+func (interp *Interpreter) Interpret(statements []statement.Stmt, repl bool) error {
+	interp.repl = repl
 	for _, stmt := range statements {
 		err := interp.execute(stmt)
 		if err != nil {
@@ -81,7 +84,9 @@ func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) error
 	if err != nil {
 		return err
 	}
-	fmt.Println("eval:", val)
+	if interp.repl {
+		fmt.Println("eval:", val)
+	}
 	return nil
 }
 
@@ -136,9 +141,9 @@ func (interp *Interpreter) evaluateUnaryExpr(expr *expression.Unary) (interface{
 
 	switch expr.Operator.Type {
 	case token.Bang:
-		return !interp.isTruthy(right), nil
+		return !isTruthy(right), nil
 	case token.Minus:
-		if err := interp.checkNumberOperand(expr.Operator, right); err != nil {
+		if err := checkNumberOperand(expr.Operator, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			break
 		}
@@ -160,63 +165,63 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 
 	switch expr.Operator.Type {
 	case token.Greater:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) > right.(float64), nil
 	case token.GreaterEqual:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) >= right.(float64), nil
 	case token.Less:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) < right.(float64), nil
 	case token.LessEqual:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) <= right.(float64), nil
 	case token.EqualEqual:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
-		return interp.isEqual(left, right), nil
+		return isEqual(left, right), nil
 	case token.BangEqual:
-		return !interp.isEqual(left, right), nil
+		return !isEqual(left, right), nil
 	case token.Minus:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) - right.(float64), nil
 	case token.Plus:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) + right.(float64), nil
 	case token.Slash:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) / right.(float64), nil
 	case token.Star:
-		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) * right.(float64), nil
 	case token.DotDot:
-		if err := interp.checkStringOperands(expr.Operator, left, right); err != nil {
+		if err := checkStringOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
@@ -251,7 +256,11 @@ func (interp *Interpreter) evaluateAssignExpr(expr *expression.Assign) (interfac
 	return val, nil
 }
 
-func (interp *Interpreter) isTruthy(val interface{}) bool {
+func (interp *Interpreter) setEnvironment(env *environment.Environment) {
+	interp.env = env
+}
+
+func isTruthy(val interface{}) bool {
 	if val == nil {
 		return false
 	}
@@ -261,7 +270,7 @@ func (interp *Interpreter) isTruthy(val interface{}) bool {
 	return true
 }
 
-func (interp *Interpreter) isEqual(left, right interface{}) bool {
+func isEqual(left, right interface{}) bool {
 	if left == nil && right == nil {
 		return true
 	}
@@ -269,10 +278,10 @@ func (interp *Interpreter) isEqual(left, right interface{}) bool {
 		return false
 	}
 
-	return interp.checkBools(left, right) || interp.checkFloats(left, right) || interp.checkStrings(left, right)
+	return checkBools(left, right) || checkFloats(left, right) || checkStrings(left, right)
 }
 
-func (interp *Interpreter) checkBools(left, right interface{}) bool {
+func checkBools(left, right interface{}) bool {
 	lval, lok := left.(bool)
 	if !lok {
 		return false
@@ -285,7 +294,7 @@ func (interp *Interpreter) checkBools(left, right interface{}) bool {
 	return lval == rval
 }
 
-func (interp *Interpreter) checkFloats(left, right interface{}) bool {
+func checkFloats(left, right interface{}) bool {
 	lval, lok := left.(float64)
 	if !lok {
 		return false
@@ -298,7 +307,7 @@ func (interp *Interpreter) checkFloats(left, right interface{}) bool {
 	return lval == rval
 }
 
-func (interp *Interpreter) checkStrings(left, right interface{}) bool {
+func checkStrings(left, right interface{}) bool {
 	lval, lok := left.(string)
 	if !lok {
 		return false
@@ -311,7 +320,7 @@ func (interp *Interpreter) checkStrings(left, right interface{}) bool {
 	return lval == rval
 }
 
-func (interp *Interpreter) checkNumberOperand(operator *token.Token, operand interface{}) error {
+func checkNumberOperand(operator *token.Token, operand interface{}) error {
 	_, ok := operand.(float64)
 	if !ok {
 		return fmt.Errorf("operand for binary operator '%s' must be a number", operator.Type)
@@ -319,7 +328,7 @@ func (interp *Interpreter) checkNumberOperand(operator *token.Token, operand int
 	return nil
 }
 
-func (interp *Interpreter) checkNumberOperands(operator *token.Token, left, right interface{}) error {
+func checkNumberOperands(operator *token.Token, left, right interface{}) error {
 	_, lok := left.(float64)
 	if !lok {
 		return fmt.Errorf("left operand for binary operator '%s' must be a number", operator.Type)
@@ -337,7 +346,7 @@ func (interp *Interpreter) checkNumberOperands(operator *token.Token, left, righ
 	return nil
 }
 
-func (interp *Interpreter) checkStringOperands(operator *token.Token, left, right interface{}) error {
+func checkStringOperands(operator *token.Token, left, right interface{}) error {
 	_, lok := left.(string)
 	if !lok {
 		return fmt.Errorf("left operand for binary operator '%s' must be a string", operator.Type)
@@ -349,13 +358,9 @@ func (interp *Interpreter) checkStringOperands(operator *token.Token, left, righ
 	return nil
 }
 
-func (interp *Interpreter) stringify(val interface{}) string {
+func stringify(val interface{}) string {
 	if val == nil {
 		return "null"
 	}
 	return fmt.Sprintf("%#v", val)
-}
-
-func (interp *Interpreter) setEnvironment(env *environment.Environment) {
-	interp.env = env
 }
