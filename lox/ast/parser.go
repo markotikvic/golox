@@ -66,8 +66,14 @@ func (p *Parser) varDeclaration() (statement.Stmt, error) {
 }
 
 func (p *Parser) statement() (statement.Stmt, error) {
+	if p.match(token.If) {
+		return p.ifStmt()
+	}
 	if p.match(token.Print) {
 		return p.printStmt()
+	}
+	if p.match(token.While) {
+		return p.whileStmt()
 	}
 	if p.match(token.LeftBrace) {
 		statements, err := p.block()
@@ -97,6 +103,38 @@ func (p *Parser) block() ([]statement.Stmt, error) {
 	return statements, nil
 }
 
+func (p *Parser) ifStmt() (statement.Stmt, error) {
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.consume(token.Then, "expect 'then' after if condition"); err != nil {
+		return nil, err
+	}
+
+	thenBranch, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+
+	branch := "if"
+
+	var elseBranch statement.Stmt = nil
+	if p.match(token.Else) {
+		elseBranch, err = p.statement()
+		if err != nil {
+			return nil, nil
+		}
+		branch = "else"
+	}
+
+	if _, err = p.consume(token.End, fmt.Sprintf("expect 'end' after %s branch body", branch)); err != nil {
+		return nil, err
+	}
+
+	return statement.NewIfStmt(condition, thenBranch, elseBranch), nil
+}
+
 func (p *Parser) printStmt() (statement.Stmt, error) {
 	val, err := p.expression()
 	if err != nil {
@@ -106,6 +144,27 @@ func (p *Parser) printStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 	return statement.NewPrintStmt(val), nil
+}
+
+func (p *Parser) whileStmt() (statement.Stmt, error) {
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.consume(token.Do, "expect 'do' after while condition"); err != nil {
+		return nil, err
+	}
+
+	body, err := p.statement()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = p.consume(token.End, "expect 'end' after while body"); err != nil {
+		return nil, err
+	}
+
+	return statement.NewWhileStmt(condition, body), nil
 }
 
 func (p *Parser) expressionStmt() (statement.Stmt, error) {
@@ -124,7 +183,7 @@ func (p *Parser) expression() (expression.Expression, error) {
 }
 
 func (p *Parser) assignment() (expression.Expression, error) {
-	expr, err := p.equality()
+	expr, err := p.or()
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +202,42 @@ func (p *Parser) assignment() (expression.Expression, error) {
 		p.reporter.ReportAtLocation(errors.New("invalid assignment target"), "TODO", "", equals.Line, 0, 0)
 
 	}
+	return expr, nil
+}
+
+func (p *Parser) or() (expression.Expression, error) {
+	expr, err := p.and()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.Or) {
+		operator := p.previous()
+		right, err := p.and()
+		if err != nil {
+			return nil, err
+		}
+		expr = expression.NewLogical(expr, operator, right)
+	}
+
+	return expr, nil
+}
+
+func (p *Parser) and() (expression.Expression, error) {
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.Or) {
+		operator := p.previous()
+		right, err := p.equality()
+		if err != nil {
+			return nil, err
+		}
+		expr = expression.NewLogical(expr, operator, right)
+	}
+
 	return expr, nil
 }
 

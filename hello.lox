@@ -1,0 +1,10 @@
+print "hello world";
+var a = 88;
+var b = 99;
+print a * b;
+
+var c = "123";
+var d = "5";
+var e = c..d;
+
+print e;

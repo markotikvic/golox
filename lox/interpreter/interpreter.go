@@ -46,6 +46,10 @@ func (interp *Interpreter) execute(stmt statement.Stmt) error {
 		err = interp.executeVarStmt(v)
 	case *statement.BlockStmt:
 		err = interp.executeBlockStmt(v)
+	case *statement.IfStmt:
+		err = interp.executeIfStmt(v)
+	case *statement.WhileStmt:
+		err = interp.executeWhileStmt(v)
 	}
 	return err
 }
@@ -109,6 +113,28 @@ func (interp *Interpreter) executeBlock(statements []statement.Stmt, env *enviro
 	return nil
 }
 
+func (interp *Interpreter) executeIfStmt(stmt *statement.IfStmt) error {
+	cond, err := interp.evaluate(stmt.Condition)
+	if err != nil {
+		return err
+	}
+	if isTruthy(cond) {
+		return interp.execute(stmt.ThenBranch)
+	} else if stmt.ElseBranch != nil {
+		return interp.execute(stmt.ElseBranch)
+	}
+	return nil
+}
+
+func (interp *Interpreter) executeWhileStmt(stmt *statement.WhileStmt) error {
+	for isTruthy(stmt.Condition) {
+		if err := interp.execute(stmt.Body); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, error) {
 	switch v := expr.(type) {
 	case *expression.Unary:
@@ -123,6 +149,8 @@ func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, er
 		return interp.evaluateVariableExpr(v)
 	case *expression.Assign:
 		return interp.evaluateAssignExpr(v)
+	case *expression.Logical:
+		return interp.evaluateLogicalExpr(v)
 	default:
 		fmt.Println("unknown expression type")
 	}
@@ -256,6 +284,30 @@ func (interp *Interpreter) evaluateAssignExpr(expr *expression.Assign) (interfac
 	return val, nil
 }
 
+func (interp *Interpreter) evaluateLogicalExpr(expr *expression.Logical) (interface{}, error) {
+	leftVal, err := interp.evaluate(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	if expr.Operator.Type == token.Or {
+		if isTruthy(leftVal) {
+			return leftVal, nil
+		}
+	} else {
+		if !isTruthy(leftVal) {
+			return leftVal, nil
+		}
+	}
+
+	rightVal, err := interp.evaluate(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	return rightVal, nil
+}
+
 func (interp *Interpreter) setEnvironment(env *environment.Environment) {
 	interp.env = env
 }
@@ -265,7 +317,13 @@ func isTruthy(val interface{}) bool {
 		return false
 	}
 	if boolVal, ok := val.(bool); ok {
-		return !boolVal
+		return boolVal
+	}
+	if stringVal, ok := val.(string); ok {
+		return stringVal != ""
+	}
+	if floatVal, ok := val.(float64); ok {
+		return floatVal != 0.0
 	}
 	return true
 }
