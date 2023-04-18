@@ -127,12 +127,19 @@ func (interp *Interpreter) executeIfStmt(stmt *statement.IfStmt) error {
 }
 
 func (interp *Interpreter) executeWhileStmt(stmt *statement.WhileStmt) error {
-	for isTruthy(stmt.Condition) {
-		if err := interp.execute(stmt.Body); err != nil {
+	for {
+		cond, err := interp.evaluate(stmt.Condition)
+		if err != nil {
 			return err
 		}
+		if isTruthy(cond) {
+			if err := interp.execute(stmt.Body); err != nil {
+				return err
+			}
+			continue
+		}
+		return nil
 	}
-	return nil
 }
 
 func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, error) {
