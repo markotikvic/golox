@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golox/lox/expression"
 	"golox/lox/reporter"
+	"golox/lox/scanner"
 	"golox/lox/statement"
 	"golox/lox/token"
 )
@@ -66,6 +67,9 @@ func (p *Parser) varDeclaration() (statement.Stmt, error) {
 }
 
 func (p *Parser) statement() (statement.Stmt, error) {
+	if p.match(token.For) {
+		return p.forStmt()
+	}
 	if p.match(token.If) {
 		return p.ifStmt()
 	}
@@ -75,8 +79,17 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	if p.match(token.While) {
 		return p.whileStmt()
 	}
+	// loops
+	if p.match(token.Do) {
+		statements, err := p.block(token.End)
+		if err != nil {
+			return nil, err
+		}
+		return statement.NewBlockStmt(statements), nil
+	}
+	// blocks
 	if p.match(token.LeftBrace) {
-		statements, err := p.block()
+		statements, err := p.block(token.RightBrace)
 		if err != nil {
 			return nil, err
 		}
@@ -85,10 +98,10 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	return p.expressionStmt()
 }
 
-func (p *Parser) block() ([]statement.Stmt, error) {
+func (p *Parser) block(limit token.TokenType) ([]statement.Stmt, error) {
 	statements := make([]statement.Stmt, 0)
 
-	for !p.check(token.RightBrace) && !p.isAtEnd() {
+	for !p.check(limit) && !p.isAtEnd() {
 		decl, err := p.declaration()
 		if err != nil {
 			return nil, err
@@ -96,7 +109,7 @@ func (p *Parser) block() ([]statement.Stmt, error) {
 		statements = append(statements, decl)
 	}
 
-	if _, err := p.consume(token.RightBrace, "expect '}' after a block"); err != nil {
+	if _, err := p.consume(limit, fmt.Sprintf("expect '%s' after a block", limit)); err != nil {
 		return nil, err
 	}
 
@@ -116,7 +129,6 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	branch := "if"
 
 	var elseBranch statement.Stmt = nil
@@ -151,8 +163,50 @@ func (p *Parser) whileStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = p.consume(token.Do, "expect 'do' after while condition"); err != nil {
+
+	body, err := p.statement()
+	if err != nil {
 		return nil, err
+	}
+
+	return statement.NewWhileStmt(condition, body), nil
+}
+
+func (p *Parser) forStmt() (statement.Stmt, error) {
+	var (
+		initializer          statement.Stmt
+		condition, increment expression.Expression
+		err                  error
+	)
+
+	// initializer
+	if p.match(token.Semicolon) {
+		initializer = nil
+	} else if p.match(token.Var) {
+		if initializer, err = p.varDeclaration(); err != nil {
+			return nil, err
+		}
+	} else {
+		if initializer, err = p.expressionStmt(); err != nil {
+			return nil, err
+		}
+	}
+
+	// condition
+	if !p.match(token.Semicolon) {
+		if condition, err = p.expression(); err != nil {
+			return nil, err
+		}
+	}
+	if _, err = p.consume(token.Semicolon, "expect ';' after loop condition"); err != nil {
+		return nil, err
+	}
+
+	// increment
+	if !p.match(token.Do) {
+		if increment, err = p.expression(); err != nil {
+			return nil, err
+		}
 	}
 
 	body, err := p.statement()
@@ -160,11 +214,25 @@ func (p *Parser) whileStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 
-	if _, err = p.consume(token.End, "expect 'end' after while body"); err != nil {
-		return nil, err
+	// desugarring in a while loop
+	if increment != nil {
+		body = statement.NewBlockStmt([]statement.Stmt{
+			body,
+			statement.NewExpressionStmt(increment),
+		})
+	}
+	if condition == nil {
+		condition = expression.NewLiteral(true)
+	}
+	body = statement.NewWhileStmt(condition, body)
+	if initializer != nil {
+		body = statement.NewBlockStmt([]statement.Stmt{
+			initializer,
+			body,
+		})
 	}
 
-	return statement.NewWhileStmt(condition, body), nil
+	return body, nil
 }
 
 func (p *Parser) expressionStmt() (statement.Stmt, error) {
@@ -452,8 +520,7 @@ func (p *Parser) synchronize() {
 			return
 		}
 
-		switch p.peek().Type {
-		case token.Class, token.For, token.While, token.Func, token.If, token.Print, token.Return, token.Var:
+		if scanner.IsKeyword(p.peek().Type) {
 			return
 		}
 

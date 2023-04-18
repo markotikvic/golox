@@ -94,7 +94,9 @@ func (lox *Lox) run(source string, repl bool) {
 		lox.hadError = true
 		return
 	}
-	lox.interp.Interpret(tree, repl)
+	if err = lox.interp.Interpret(tree, repl); err != nil {
+		fmt.Println(err)
+	}
 	//fmt.Println(ast.NewPrinter().Print(tree))
 }
 

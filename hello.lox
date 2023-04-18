@@ -1,10 +1,41 @@
-print "hello world";
-var a = 88;
-var b = 99;
-print a * b;
+var a = 0;
+var temp;
 
-var c = "123";
-var d = "5";
-var e = c..d;
+for var b = 1; a < 10000; b = temp + b do
+	print a;
+	temp = a;
+	a = b;
+end
 
-print e;
+var b = true;
+
+while b do
+	print "hello".."world";
+	b = false;
+end
+
+if b then
+	print "b is false";
+end
+
+if b then
+	print "b can't be true";
+else
+	print "b realy is false";
+end
+
+var hello = "hello";
+var world = "world";
+var hello_world = "hello".." ".."world";
+
+if hello_world == "hello".." ".."world" then
+	print "string comparison ftw!";
+end
+
+var c = "not blocked";
+
+{
+	var d = "blocked";
+}
+
+print d;

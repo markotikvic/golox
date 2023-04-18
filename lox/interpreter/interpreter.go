@@ -224,7 +224,7 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 		}
 		return left.(float64) <= right.(float64), nil
 	case token.EqualEqual:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := checkEqualityOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
@@ -388,7 +388,7 @@ func checkStrings(left, right interface{}) bool {
 func checkNumberOperand(operator *token.Token, operand interface{}) error {
 	_, ok := operand.(float64)
 	if !ok {
-		return fmt.Errorf("operand for binary operator '%s' must be a number", operator.Type)
+		return fmt.Errorf("operand for binary operator '%s' must be a number", operator.Lexeme)
 	}
 	return nil
 }
@@ -396,11 +396,11 @@ func checkNumberOperand(operator *token.Token, operand interface{}) error {
 func checkNumberOperands(operator *token.Token, left, right interface{}) error {
 	_, lok := left.(float64)
 	if !lok {
-		return fmt.Errorf("left operand for binary operator '%s' must be a number", operator.Type)
+		return fmt.Errorf("left operand for binary operator '%s' must be a number", operator.Lexeme)
 	}
 	rval, rok := right.(float64)
 	if !rok {
-		return fmt.Errorf("right operand for binary operator '%s' must be a number", operator.Type)
+		return fmt.Errorf("right operand for binary operator '%s' must be a number", operator.Lexeme)
 	}
 
 	// special case
@@ -411,14 +411,31 @@ func checkNumberOperands(operator *token.Token, left, right interface{}) error {
 	return nil
 }
 
+func checkEqualityOperands(operator *token.Token, left, right interface{}) error {
+	_, lfloat := left.(float64)
+	_, rfloat := right.(float64)
+
+	_, lstr := left.(string)
+	_, rstr := right.(string)
+
+	_, lbool := left.(bool)
+	_, rbool := right.(bool)
+
+	if lfloat != rfloat || lstr != rstr || lbool != rbool {
+		return fmt.Errorf("left and right operands for binary operator '%s' must be of same type", operator.Lexeme)
+	}
+
+	return nil
+}
+
 func checkStringOperands(operator *token.Token, left, right interface{}) error {
 	_, lok := left.(string)
 	if !lok {
-		return fmt.Errorf("left operand for binary operator '%s' must be a string", operator.Type)
+		return fmt.Errorf("left operand for binary operator '%s' must be a string", operator.Lexeme)
 	}
 	_, rok := right.(string)
 	if !rok {
-		return fmt.Errorf("right operand for binary operator '%s' must be a string", operator.Type)
+		return fmt.Errorf("right operand for binary operator '%s' must be a string", operator.Lexeme)
 	}
 	return nil
 }
