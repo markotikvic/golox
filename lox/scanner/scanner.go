@@ -14,14 +14,11 @@ var Keywords = map[string]token.TokenType{
 	"or":     token.Or,
 	"class":  token.Class,
 	"if":     token.If,
-	"then":   token.Then,
-	"end":    token.End,
 	"else":   token.Else,
 	"elif":   token.Elif,
 	"not":    token.Not,
 	"while":  token.While,
 	"for":    token.For,
-	"do":     token.Do,
 	"func":   token.Func,
 	"null":   token.Null,
 	"print":  token.Print,
@@ -39,14 +36,11 @@ func IsKeyword(tokenType token.TokenType) bool {
 		token.Or,
 		token.Class,
 		token.If,
-		token.Then,
-		token.End,
 		token.Else,
 		token.Elif,
 		token.Not,
 		token.While,
 		token.For,
-		token.Do,
 		token.Func,
 		token.Null,
 		token.Print,
@@ -56,7 +50,6 @@ func IsKeyword(tokenType token.TokenType) bool {
 		token.True,
 		token.False,
 		token.Var:
-
 		return true
 	}
 	return false

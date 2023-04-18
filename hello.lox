@@ -1,41 +1,42 @@
 var a = 0;
 var temp;
 
-for var b = 1; a < 10000; b = temp + b do
-	print a;
-	temp = a;
-	a = b;
-end
+for var b = 1; a < 10000; b = temp + b {
+  print a;
+  temp = a;
+  a = b;
+}
 
 var b = true;
 
-while b do
-	print "hello".."world";
-	b = false;
-end
+while b {
+  print "hello".."world";
+  b = false;
+}
 
-if b then
-	print "b is false";
-end
+if b {
+  print "b is false";
+}
 
-if b then
-	print "b can't be true";
-else
-	print "b realy is false";
-end
+if b {
+  print "b can't be true";
+} else {
+  print "b realy is false";
+}
 
 var hello = "hello";
 var world = "world";
 var hello_world = "hello".." ".."world";
 
-if hello_world == "hello".." ".."world" then
-	print "string comparison ftw!";
-end
+if hello_world == "hello".." ".."world" {
+  print "string comparison ftw!";
+}
 
 var c = "not scopped";
 
 {
-	var d = "scopped";
+  var d = "scopped";
+  print d;
 }
 
 print c;

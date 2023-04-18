@@ -39,14 +39,11 @@ const (
 	Or
 	Class
 	If
-	Then
-	End
 	Else
 	Elif
 	Not
 	While
 	For
-	Do
 	Func
 	Null
 	Print
@@ -88,14 +85,11 @@ var tokenTypeNames = []string{
 	"Or",
 	"Class",
 	"If",
-	"Then",
-	"End",
 	"Else",
 	"Elif",
 	"Not",
 	"While",
 	"For",
-	"Do",
 	"Func",
 	"Null",
 	"Print",

@@ -79,14 +79,6 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	if p.match(token.While) {
 		return p.whileStmt()
 	}
-	// loops
-	if p.match(token.Do) {
-		statements, err := p.block(token.End)
-		if err != nil {
-			return nil, err
-		}
-		return statement.NewBlockStmt(statements), nil
-	}
 	// blocks
 	if p.match(token.LeftBrace) {
 		statements, err := p.block(token.RightBrace)
@@ -121,7 +113,7 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = p.consume(token.Then, "expect 'then' after if condition"); err != nil {
+	if _, err = p.consume(token.LeftBrace, "expect '{' after if condition"); err != nil {
 		return nil, err
 	}
 
@@ -129,19 +121,23 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	branch := "if"
+
+	if _, err = p.consume(token.RightBrace, "expect '}' after if branch body"); err != nil {
+		return nil, err
+	}
 
 	var elseBranch statement.Stmt = nil
 	if p.match(token.Else) {
+		if _, err = p.consume(token.LeftBrace, "expect '{' after else statement"); err != nil {
+			return nil, err
+		}
 		elseBranch, err = p.statement()
 		if err != nil {
 			return nil, nil
 		}
-		branch = "else"
-	}
-
-	if _, err = p.consume(token.End, fmt.Sprintf("expect 'end' after %s branch body", branch)); err != nil {
-		return nil, err
+		if _, err = p.consume(token.RightBrace, "expect '}' after else branch body"); err != nil {
+			return nil, err
+		}
 	}
 
 	return statement.NewIfStmt(condition, thenBranch, elseBranch), nil
@@ -203,7 +199,7 @@ func (p *Parser) forStmt() (statement.Stmt, error) {
 	}
 
 	// increment
-	if !p.match(token.Do) {
+	if !p.match(token.LeftBrace) {
 		if increment, err = p.expression(); err != nil {
 			return nil, err
 		}
