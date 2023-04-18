@@ -32,10 +32,11 @@ if hello_world == "hello".." ".."world" then
 	print "string comparison ftw!";
 end
 
-var c = "not blocked";
+var c = "not scopped";
 
 {
-	var d = "blocked";
+	var d = "scopped";
 }
 
+print c;
 print d;
