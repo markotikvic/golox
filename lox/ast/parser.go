@@ -521,7 +521,10 @@ func (p *Parser) match(types ...token.TokenType) bool {
 			return true
 		}
 	}
-	return false
+	return len(types) == 0 // so that we can define functions as:
+	//func <name>(<args>) <- no need for a special token after arguments
+	//	<body>
+	//end
 }
 
 func (p *Parser) check(tokenType token.TokenType) bool {
