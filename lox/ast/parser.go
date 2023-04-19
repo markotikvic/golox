@@ -163,6 +163,9 @@ func (p *Parser) whileStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !p.check(token.Do) {
+		return nil, errors.New("expect 'do' after while conditition")
+	}
 
 	body, err := p.statement()
 	if err != nil {
@@ -203,9 +206,12 @@ func (p *Parser) forStmt() (statement.Stmt, error) {
 	}
 
 	// increment
-	if !p.match(token.Do) {
+	if !p.check(token.Do) {
 		if increment, err = p.expression(); err != nil {
 			return nil, err
+		}
+		if !p.check(token.Do) {
+			return nil, errors.New("expect 'do' after for loop increment")
 		}
 	}
 
@@ -409,7 +415,36 @@ func (p *Parser) unary() (expression.Expression, error) {
 		return expression.NewUnary(operator, right), nil
 	}
 
-	return p.primary()
+	return p.call()
+}
+
+func (p *Parser) call() (expression.Expression, error) {
+	expr, err := p.primary()
+	if err != nil {
+		return nil, err
+	}
+	for {
+		if p.match(token.LeftParen) {
+			expr, err = p.finishCall(expr)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+	return expr, nil
+}
+
+func (p *Parser) finishCall(calle expression.Expression) (expression.Expression, error) {
+	/*
+		arguments := make([]expression.Expression, 0)
+		if !p.check(token.RightParen) {
+
+		}
+		paren, err := p.consume(token.RightParen, "expect ')' after arguments")
+	*/
+	return nil, nil
 }
 
 func (p *Parser) primary() (expression.Expression, error) {

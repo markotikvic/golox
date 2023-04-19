@@ -36,6 +36,7 @@ var c = "not scopped";
 
 {
 	var d = "scopped";
+	print d;
 }
 
 print c;
