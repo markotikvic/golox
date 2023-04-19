@@ -1,0 +1,21 @@
+func hello(first, last)
+	print first.." "..last;
+end
+
+hello("marko", "tikvic");
+
+func retval(val)
+	return val;
+end
+
+func fib(n)
+  if n <= 1 then
+    return n;
+  end
+
+  return fib(n - 2) + fib(n - 1);
+end
+
+print fib(20);
+
+hello(1, "tikvic");

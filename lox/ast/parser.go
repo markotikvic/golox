@@ -37,11 +37,50 @@ func (p *Parser) Parse() ([]statement.Stmt, error) {
 }
 
 func (p *Parser) declaration() (statement.Stmt, error) {
+	if p.match(token.Func) {
+		return p.function("function")
+	}
 	if p.match(token.Var) {
 		return p.varDeclaration()
 
 	}
 	return p.statement()
+}
+
+func (p *Parser) function(kind string) (statement.Stmt, error) {
+	name, err := p.consume(token.Identifier, "expect "+kind+" name")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.consume(token.LeftParen, "expect '(' after "+kind+" name"); err != nil {
+		return nil, err
+	}
+	params := make([]*token.Token, 0)
+	if !p.check(token.RightParen) {
+		for {
+			if len(params) >= 255 {
+				err = errors.New("can't have more than 255 function parameters")
+				p.reporter.ReportAtLocation(err, "", "", p.peek().Line, 0, 0)
+				return nil, err
+			}
+			param, err := p.consume(token.Identifier, "expect parameter name")
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, param)
+			if !p.match(token.Comma) {
+				break
+			}
+		}
+	}
+	if _, err = p.consume(token.RightParen, "expect ')' after "+kind+" parameters"); err != nil {
+		return nil, err
+	}
+	body, err := p.block(token.End)
+	if err != nil {
+		return nil, err
+	}
+	return statement.NewFunctionStmt(name, params, body), nil
 }
 
 func (p *Parser) varDeclaration() (statement.Stmt, error) {
@@ -74,6 +113,9 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	}
 	if p.match(token.Print) {
 		return p.printStmt()
+	}
+	if p.match(token.Return) {
+		return p.returnStmt()
 	}
 	if p.match(token.While) {
 		return p.whileStmt()
@@ -155,6 +197,23 @@ func (p *Parser) printStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 	return statement.NewPrintStmt(val), nil
+}
+
+func (p *Parser) returnStmt() (statement.Stmt, error) {
+	var (
+		value expression.Expression = expression.MakeNull()
+		err   error                 = nil
+	)
+	keyword := p.previous()
+	if !p.check(token.Semicolon) {
+		if value, err = p.expression(); err != nil {
+			return nil, err
+		}
+	}
+	if _, err = p.consume(token.Semicolon, "expect ';' after return"); err != nil {
+		return nil, err
+	}
+	return statement.NewReturnStmt(keyword, value), nil
 }
 
 func (p *Parser) whileStmt() (statement.Stmt, error) {
@@ -266,8 +325,7 @@ func (p *Parser) assignment() (expression.Expression, error) {
 			return expression.NewAssign(name, value), nil
 		}
 
-		p.reporter.ReportAtLocation(errors.New("invalid assignment target"), "TODO", "", equals.Line, 0, 0)
-
+		p.reporter.ReportAtLocation(errors.New("invalid assignment target"), "", "", equals.Line, 0, 0)
 	}
 	return expr, nil
 }
@@ -488,12 +546,12 @@ func (p *Parser) primary() (expression.Expression, error) {
 	prev := p.previous()
 	if prev == nil {
 		err := fmt.Errorf("unknown expression '%s'", tok.Lexeme)
-		p.reporter.ReportAtLocation(err, "TODO", "", tok.Line, 0, 0)
+		p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
 		return nil, err
 	}
 
 	err := fmt.Errorf("unknown expression '%s' after '%s'", tok.Lexeme, prev.Lexeme)
-	p.reporter.ReportAtLocation(err, "TODO", "", tok.Line, 0, 0)
+	p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
 	return nil, err
 }
 
@@ -510,7 +568,7 @@ func (p *Parser) consume(limit token.TokenType, errorMsg string) (*token.Token, 
 		err = fmt.Errorf("at '%s': %s", tok.Lexeme, errorMsg)
 	}
 
-	p.reporter.ReportAtLocation(err, "TODO", "", tok.Line, 0, 0)
+	p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
 	return nil, err
 }
 

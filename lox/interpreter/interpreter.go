@@ -43,7 +43,7 @@ func NewInterpreter(reporter *reporter.ErrorReporter) *Interpreter {
 func (interp *Interpreter) Interpret(statements []statement.Stmt, repl bool) error {
 	interp.repl = repl
 	for _, stmt := range statements {
-		err := interp.execute(stmt)
+		_, err := interp.execute(stmt)
 		if err != nil {
 			return err
 		}
@@ -51,30 +51,34 @@ func (interp *Interpreter) Interpret(statements []statement.Stmt, repl bool) err
 	return nil
 }
 
-func (interp *Interpreter) execute(stmt statement.Stmt) error {
-	var err error
+func (interp *Interpreter) execute(stmt statement.Stmt) (interface{}, error) {
 	switch v := stmt.(type) {
 	case *statement.PrintStmt:
-		err = interp.executePrintStmt(v)
+		return interp.executePrintStmt(v)
 	case *statement.ExpressionStmt:
-		err = interp.executeExprStmt(v)
+		return interp.executeExprStmt(v)
+	case *statement.FunctionStmt:
+		return interp.executeFuncStmt(v)
 	case *statement.VarStmt:
-		err = interp.executeVarStmt(v)
+		return interp.executeVarStmt(v)
 	case *statement.BlockStmt:
-		err = interp.executeBlockStmt(v)
+		return interp.executeBlockStmt(v)
 	case *statement.IfStmt:
-		err = interp.executeIfStmt(v)
+		return interp.executeIfStmt(v)
 	case *statement.WhileStmt:
-		err = interp.executeWhileStmt(v)
+		return interp.executeWhileStmt(v)
+	case *statement.ReturnStmt:
+		return interp.executeReturnStmt(v)
+	default:
+		panic(fmt.Sprintf("unimplemented: %#v", stmt))
 	}
-	return err
 }
 
-func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) error {
+func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) (interface{}, error) {
 	if _, defined := interp.env.Lookup(stmt.Name); defined {
 		err := fmt.Errorf("variable named '%s' already exists", stmt.Name.Lexeme)
 		interp.reporter.ReportAtLocation(err, "TODO", "", stmt.Name.Line, 0, 0)
-		return err
+		return nil, err
 	}
 
 	var (
@@ -83,79 +87,107 @@ func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) error {
 	)
 	if stmt.Initializer != nil {
 		if val, err = interp.evaluate(stmt.Initializer); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	interp.env.Define(stmt.Name.Lexeme, val)
-	return nil
+	return nil, nil
 }
 
-func (interp *Interpreter) executePrintStmt(stmt *statement.PrintStmt) error {
+func (interp *Interpreter) executePrintStmt(stmt *statement.PrintStmt) (interface{}, error) {
 	val, err := interp.evaluate(stmt.Expression)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Printf("%#v\n", val)
-	return nil
+	return nil, nil
 }
 
-func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) error {
+func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) (interface{}, error) {
 	val, err := interp.evaluate(stmt.Expression)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if interp.repl {
 		fmt.Println("eval:", val)
 	}
-	return nil
+	return nil, nil
 }
 
-func (interp *Interpreter) executeBlockStmt(stmt *statement.BlockStmt) error {
+func (interp *Interpreter) executeFuncStmt(stmt *statement.FunctionStmt) (interface{}, error) {
+	function := NewLoxFunction(stmt)
+	interp.env.Define(stmt.Name.Lexeme, function)
+	return nil, nil
+}
+
+func (interp *Interpreter) executeBlockStmt(stmt *statement.BlockStmt) (interface{}, error) {
 	env := environment.NewEnvironment(interp.env)
 	return interp.executeBlock(stmt.Statements, env)
 }
 
-func (interp *Interpreter) executeBlock(statements []statement.Stmt, env *environment.Environment) error {
+// TODO: Implement ReturnValue struct which holds an array of return values.
+// We should also support multiple return values.
+// Implement NewLine token, so that we can ommit ';' from most of the code base.
+func (interp *Interpreter) executeBlock(statements []statement.Stmt, env *environment.Environment) (interface{}, error) {
 	previous := interp.env
 	defer interp.setEnvironment(previous)
 	interp.env = env
 
 	for _, s := range statements {
-		if err := interp.execute(s); err != nil {
-			return err
+		retval, err := interp.execute(s)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: Potential rework. Make return statements more elegant.
+		if retval != nil {
+			return retval, nil
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (interp *Interpreter) executeIfStmt(stmt *statement.IfStmt) error {
+func (interp *Interpreter) executeIfStmt(stmt *statement.IfStmt) (interface{}, error) {
 	cond, err := interp.evaluate(stmt.Condition)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if isTruthy(cond) {
 		return interp.execute(stmt.ThenBranch)
 	} else if stmt.ElseBranch != nil {
 		return interp.execute(stmt.ElseBranch)
 	}
-	return nil
+	return nil, nil
 }
 
-func (interp *Interpreter) executeWhileStmt(stmt *statement.WhileStmt) error {
+func (interp *Interpreter) executeWhileStmt(stmt *statement.WhileStmt) (interface{}, error) {
 	for {
 		cond, err := interp.evaluate(stmt.Condition)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if isTruthy(cond) {
-			if err := interp.execute(stmt.Body); err != nil {
-				return err
+			if _, err := interp.execute(stmt.Body); err != nil {
+				return nil, err
 			}
 			continue
 		}
-		return nil
+		return nil, nil
 	}
+}
+
+func (interp *Interpreter) executeReturnStmt(stmt *statement.ReturnStmt) (interface{}, error) {
+	var (
+		val interface{} = nil
+		err error
+	)
+
+	if stmt.Value != nil {
+		if val, err = interp.evaluate(stmt.Value); err != nil {
+			return nil, err
+		}
+	}
+	return val, nil
 }
 
 func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, error) {
