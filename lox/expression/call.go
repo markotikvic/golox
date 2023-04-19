@@ -3,15 +3,17 @@ package expression
 import "golox/lox/token"
 
 type Call struct {
-	Calee Expression
-	Paren *token.Token
-	Args  []Expression
+	Callee Expression
+	Paren  *token.Token
+	Args   []Expression
 }
 
-func NewCall(calee Expression, paren *token.Token, args []Expression) *Call {
+func NewCall(callee Expression, paren *token.Token, args []Expression) *Call {
 	return &Call{
-		Calee: calee,
-		Paren: paren,
-		Args:  args,
+		Callee: callee,
+		Paren:  paren,
+		Args:   args,
 	}
 }
+
+func (c *Call) Expression() {}

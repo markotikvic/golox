@@ -8,20 +8,36 @@ import (
 	"golox/lox/reporter"
 	"golox/lox/statement"
 	"golox/lox/token"
+	"time"
 )
 
 type Interpreter struct {
 	reporter *reporter.ErrorReporter
 	env      *environment.Environment
+	globals  *environment.Environment
 	repl     bool
 }
 
 func NewInterpreter(reporter *reporter.ErrorReporter) *Interpreter {
-	return &Interpreter{
+	interp := &Interpreter{
 		reporter: reporter,
 		env:      environment.NewEnvironment(nil),
 		repl:     false,
 	}
+
+	interp.globals = interp.env
+
+	interp.globals.Define("clock", NewLoxCallable(
+		0,
+		func(intrp *Interpreter, args []interface{}) (interface{}, error) {
+			return time.Now().Unix(), nil
+		},
+		func() string {
+			return "<native fn>"
+		}),
+	)
+
+	return interp
 }
 
 func (interp *Interpreter) Interpret(statements []statement.Stmt, repl bool) error {
@@ -158,6 +174,8 @@ func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, er
 		return interp.evaluateAssignExpr(v)
 	case *expression.Logical:
 		return interp.evaluateLogicalExpr(v)
+	case *expression.Call:
+		return interp.evaluateCallExpr(v)
 	default:
 		fmt.Println("unknown expression type")
 	}
@@ -313,6 +331,37 @@ func (interp *Interpreter) evaluateLogicalExpr(expr *expression.Logical) (interf
 	}
 
 	return rightVal, nil
+}
+
+func (interp *Interpreter) evaluateCallExpr(expr *expression.Call) (interface{}, error) {
+	callee, err := interp.evaluate(expr.Callee)
+	if err != nil {
+		return nil, err
+	}
+	args := make([]interface{}, 0)
+	for _, arg := range expr.Args {
+		val, err := interp.evaluate(arg)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, val)
+	}
+
+	function, ok := callee.(LoxCallable)
+	if !ok {
+		err = fmt.Errorf("'%s' is not a callable function or a class", function)
+		interp.reporter.ReportAtLocation(err, "TODO", "", expr.Paren.Line, 0, 0)
+		return nil, err
+	}
+
+	if len(args) != function.Arity() {
+		err = fmt.Errorf("expect %d arguments but got %d", function.Arity(), len(args))
+		interp.reporter.ReportAtLocation(err, "TODO", "", expr.Paren.Line, 0, 0)
+		return nil, err
+	}
+
+	return function.Call(interp, args)
+
 }
 
 func (interp *Interpreter) setEnvironment(env *environment.Environment) {

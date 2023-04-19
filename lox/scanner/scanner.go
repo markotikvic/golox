@@ -9,7 +9,7 @@ import (
 	"golox/lox/token"
 )
 
-var Keywords = map[string]token.TokenType{
+var keywords = map[string]token.TokenType{
 	"and":    token.And,
 	"or":     token.Or,
 	"class":  token.Class,
@@ -31,35 +31,6 @@ var Keywords = map[string]token.TokenType{
 	"true":   token.True,
 	"false":  token.False,
 	"var":    token.Var,
-}
-
-func IsKeyword(tokenType token.TokenType) bool {
-	switch tokenType {
-	case token.And,
-		token.Or,
-		token.Class,
-		token.If,
-		token.Then,
-		token.End,
-		token.Else,
-		token.Elif,
-		token.Not,
-		token.While,
-		token.For,
-		token.Do,
-		token.Func,
-		token.Null,
-		token.Print,
-		token.Return,
-		token.Base,
-		token.Me,
-		token.True,
-		token.False,
-		token.Var:
-
-		return true
-	}
-	return false
 }
 
 type Scanner struct {
@@ -261,7 +232,7 @@ func (s *Scanner) addIdentifierToken() {
 		s.advance()
 	}
 	identifier := s.source[s.start:s.current]
-	if tokenType, isReserved := Keywords[identifier]; isReserved {
+	if tokenType, isReserved := keywords[identifier]; isReserved {
 		s.addToken(tokenType)
 	} else {
 		s.addToken(token.Identifier)

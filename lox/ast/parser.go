@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"golox/lox/expression"
 	"golox/lox/reporter"
-	"golox/lox/scanner"
 	"golox/lox/statement"
 	"golox/lox/token"
 )
@@ -222,20 +221,14 @@ func (p *Parser) forStmt() (statement.Stmt, error) {
 
 	// desugarring in a while loop
 	if increment != nil {
-		body = statement.NewBlockStmt([]statement.Stmt{
-			body,
-			statement.NewExpressionStmt(increment),
-		})
+		body = statement.NewBlockStmt([]statement.Stmt{body, statement.NewExpressionStmt(increment)})
 	}
 	if condition == nil {
 		condition = expression.NewLiteral(true)
 	}
 	body = statement.NewWhileStmt(condition, body)
 	if initializer != nil {
-		body = statement.NewBlockStmt([]statement.Stmt{
-			initializer,
-			body,
-		})
+		body = statement.NewBlockStmt([]statement.Stmt{initializer, body})
 	}
 
 	return body, nil
@@ -436,15 +429,29 @@ func (p *Parser) call() (expression.Expression, error) {
 	return expr, nil
 }
 
-func (p *Parser) finishCall(calle expression.Expression) (expression.Expression, error) {
-	/*
-		arguments := make([]expression.Expression, 0)
-		if !p.check(token.RightParen) {
-
+func (p *Parser) finishCall(callee expression.Expression) (expression.Expression, error) {
+	arguments := make([]expression.Expression, 0)
+	if !p.check(token.RightParen) {
+		for {
+			if len(arguments) >= 255 {
+				return nil, errors.New("maximum number of function arguments (255) exceeded")
+			}
+			expr, err := p.expression()
+			if err != nil {
+				return nil, err
+			}
+			arguments = append(arguments, expr)
+			if !p.match(token.Comma) {
+				break
+			}
 		}
-		paren, err := p.consume(token.RightParen, "expect ')' after arguments")
-	*/
-	return nil, nil
+
+	}
+	paren, err := p.consume(token.RightParen, "expect ')' after arguments")
+	if err != nil {
+		return nil, err
+	}
+	return expression.NewCall(callee, paren, arguments), nil
 }
 
 func (p *Parser) primary() (expression.Expression, error) {
@@ -554,11 +561,9 @@ func (p *Parser) synchronize() {
 		if p.previous().Type == token.Semicolon {
 			return
 		}
-
-		if scanner.IsKeyword(p.peek().Type) {
+		if token.IsKeyword(p.peek().Type) {
 			return
 		}
-
 		p.advance()
 	}
 }

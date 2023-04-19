@@ -112,6 +112,35 @@ func (tt TokenType) String() string {
 	return tokenTypeNames[tt]
 }
 
+func IsKeyword(tokenType TokenType) bool {
+	switch tokenType {
+	case And,
+		Or,
+		Class,
+		If,
+		Then,
+		End,
+		Else,
+		Elif,
+		Not,
+		While,
+		For,
+		Do,
+		Func,
+		Null,
+		Print,
+		Return,
+		Base,
+		Me,
+		True,
+		False,
+		Var:
+
+		return true
+	}
+	return false
+}
+
 // TODO Expand with starting and ending columns for better error reporting
 type Token struct {
 	Type    TokenType
