@@ -120,7 +120,15 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	if p.match(token.While) {
 		return p.whileStmt()
 	}
-	// loops
+	// TODO: elif
+	//	if p.match(token.Elif) {
+	//		statements, err := p.block(token.End, token.Elif)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		return statement.NewBlockStmt(statements), nil
+	//	}
+	// loops, if-then/else
 	if p.match(token.Do) {
 		statements, err := p.block(token.End)
 		if err != nil {
@@ -162,28 +170,29 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = p.consume(token.Then, "expect 'then' after if condition"); err != nil {
+	if _, err := p.consume(token.Then, "expect 'then' after branch condition"); err != nil {
 		return nil, err
 	}
 
-	thenBranch, err := p.statement()
+	// FIXME: if block can end with 'end' or 'else' (or 'elif' in the future)
+	thenStatements, err := p.block(token.End)
 	if err != nil {
 		return nil, err
 	}
-	branch := "if"
+	thenBranch := statement.NewBlockStmt(thenStatements)
 
 	var elseBranch statement.Stmt = nil
 	if p.match(token.Else) {
-		elseBranch, err = p.statement()
+		elseStatements, err := p.block(token.End)
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
-		branch = "else"
+		elseBranch = statement.NewBlockStmt(elseStatements)
 	}
 
-	if _, err = p.consume(token.End, fmt.Sprintf("expect 'end' after %s branch body", branch)); err != nil {
-		return nil, err
-	}
+	//	if _, err = p.consume(token.End, "expect 'end' after branch body"); err != nil {
+	//		return nil, err
+	//	}
 
 	return statement.NewIfStmt(condition, thenBranch, elseBranch), nil
 }

@@ -10,12 +10,15 @@ end
 
 func fib(n)
   if n <= 1 then
+    print n;
+    print 1+2;
     return n;
+  else
+    print 2222;
+    print 3333;
   end
 
   return fib(n - 2) + fib(n - 1);
 end
 
-print fib(20);
-
-hello(1, "tikvic");
+print fib(5);
