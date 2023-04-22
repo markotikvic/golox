@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"errors"
 	"fmt"
 	"golox/lox/expression"
 	"golox/lox/reporter"
@@ -198,7 +197,7 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	}
 
 	if p.previous().Type != token.End {
-		return nil, errors.New("expected 'end', 'elif' or 'else' after if statement body")
+		return nil, p.reporter.Report("expected 'end', 'elif' or 'else' after if statement body", "", "", p.previous().Line, 0, 0)
 	}
 
 	return statement.NewIfStmt(condition, thenBranch, elifBranches, elseBranch), nil
@@ -238,7 +237,7 @@ func (p *Parser) whileStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 	if !p.check(token.Do) {
-		return nil, errors.New("expect 'do' after while conditition")
+		return nil, p.reporter.Report("expect 'do' after while conditition", "", "", p.peek().Line, 0, 0)
 	}
 
 	body, err := p.statement()
@@ -285,7 +284,7 @@ func (p *Parser) forStmt() (statement.Stmt, error) {
 			return nil, err
 		}
 		if !p.check(token.Do) {
-			return nil, errors.New("expect 'do' after for loop increment")
+			return nil, p.reporter.Report("expect 'do' after for loop increment", "", "", p.peek().Line, 0, 0)
 		}
 	}
 
@@ -508,7 +507,7 @@ func (p *Parser) finishCall(callee expression.Expression) (expression.Expression
 	if !p.check(token.RightParen) {
 		for {
 			if len(arguments) >= 255 {
-				return nil, errors.New("maximum number of function arguments (255) exceeded")
+				return nil, p.reporter.Report("maximum number of function arguments (255) exceeded", "", "", p.previous().Line, 0, 0)
 			}
 			expr, err := p.expression()
 			if err != nil {
@@ -574,13 +573,8 @@ func (p *Parser) consume(limit token.TokenType, errorMsg string) (*token.Token, 
 		return p.advance(), nil
 	}
 
-	var err error
 	tok := p.peek()
-	if tok.Type == token.EOF {
-		err = p.reporter.Report(fmt.Sprintf("at end: %s", errorMsg), "", "", tok.Line, 0, 0)
-	} else {
-		err = p.reporter.Report(fmt.Sprintf("at '%s': %s", tok.Lexeme, errorMsg), "", "", tok.Line, 0, 0)
-	}
+	err := p.reporter.Report(fmt.Sprintf("at '%s': %s", tok.Lexeme, errorMsg), "", "", tok.Line, 0, 0)
 
 	return nil, err
 }

@@ -144,20 +144,22 @@ func (t TokenType) IsKeyword() bool {
 // TODO Expand with starting and ending columns for better error reporting
 type Token struct {
 	Type    TokenType
-	Lexeme  string
-	Literal interface{}
 	Line    int
+	Lexeme  string
+	Source  string
+	Literal interface{}
 }
 
 func (t *Token) String() string {
 	return fmt.Sprintf("%s %s", t.Type, t.Lexeme) // TODO: + literal
 }
 
-func NewToken(kind TokenType, lexeme string, literal interface{}, line int) *Token {
+func NewToken(kind TokenType, lexeme string, literal interface{}, line int, source string) *Token {
 	return &Token{
 		Type:    kind,
 		Lexeme:  lexeme,
 		Literal: literal,
 		Line:    line,
+		Source:  source,
 	}
 }

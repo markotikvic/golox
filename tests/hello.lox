@@ -40,4 +40,3 @@ var c = "not scopped";
 }
 
 print c;
-print d;

@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"errors"
 	"fmt"
 	"golox/lox/environment"
 	"golox/lox/expression"
@@ -227,7 +226,7 @@ func (interp *Interpreter) evaluateUnaryExpr(expr *expression.Unary) (interface{
 	case token.Bang:
 		return !isTruthy(right), nil
 	case token.Minus:
-		if err := checkNumberOperand(expr.Operator, right); err != nil {
+		if err := interp.checkNumberOperand(expr.Operator, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			break
 		}
@@ -249,31 +248,31 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 
 	switch expr.Operator.Type {
 	case token.Greater:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) > right.(float64), nil
 	case token.GreaterEqual:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) >= right.(float64), nil
 	case token.Less:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) < right.(float64), nil
 	case token.LessEqual:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) <= right.(float64), nil
 	case token.EqualEqual:
-		if err := checkEqualityOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkEqualityOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
@@ -281,31 +280,31 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 	case token.BangEqual:
 		return !isEqual(left, right), nil
 	case token.Minus:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) - right.(float64), nil
 	case token.Plus:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) + right.(float64), nil
 	case token.Slash:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) / right.(float64), nil
 	case token.Star:
-		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkNumberOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) * right.(float64), nil
 	case token.DotDot:
-		if err := checkStringOperands(expr.Operator, left, right); err != nil {
+		if err := interp.checkStringOperands(expr.Operator, left, right); err != nil {
 			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
@@ -322,7 +321,7 @@ func (interp *Interpreter) evaluateGroupingExpr(expr *expression.Grouping) (inte
 func (interp *Interpreter) evaluateVariableExpr(expr *expression.Variable) (interface{}, error) {
 	val, found := interp.env.Lookup(expr.Name)
 	if !found {
-		return nil, fmt.Errorf("undefined variable '%s'", expr.Name.Lexeme)
+		return nil, interp.reporter.Report(fmt.Sprintf("undefined variable '%s'", expr.Name.Lexeme), "", "", expr.Name.Line, 0, 0)
 	}
 
 	return val, nil
@@ -334,8 +333,7 @@ func (interp *Interpreter) evaluateAssignExpr(expr *expression.Assign) (interfac
 		return nil, err
 	}
 	if ok := interp.env.Assign(expr.Name, val); !ok {
-		err = fmt.Errorf("undefined variable '%s'", expr.Name.Lexeme)
-		return nil, err
+		return nil, interp.reporter.Report(fmt.Sprintf("undefined variable '%s'", expr.Name.Lexeme), "", "", expr.Name.Line, 0, 0)
 	}
 	return val, nil
 }
@@ -398,6 +396,68 @@ func (interp *Interpreter) setEnvironment(env *environment.Environment) {
 	interp.env = env
 }
 
+func (interp *Interpreter) checkNumberOperand(operator *token.Token, operand interface{}) error {
+	_, ok := operand.(float64)
+	if !ok {
+		return interp.reporter.Report(fmt.Sprintf("operand for binary operator '%s' must be a number", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+	return nil
+}
+
+func (interp *Interpreter) checkNumberOperands(operator *token.Token, left, right interface{}) error {
+	_, lok := left.(float64)
+	if !lok {
+		return interp.reporter.Report(fmt.Sprintf("left operand for binary operator '%s' must be a number", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+	rval, rok := right.(float64)
+	if !rok {
+		return interp.reporter.Report(fmt.Sprintf("right operand for binary operator '%s' must be a number", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+
+	// special case
+	if operator.Type == token.Slash && rval == 0.0 {
+		return interp.reporter.Report("division by zero", "", "", operator.Line, 0, 0)
+
+	}
+	return nil
+}
+
+func (interp *Interpreter) checkEqualityOperands(operator *token.Token, left, right interface{}) error {
+	_, lfloat := left.(float64)
+	_, rfloat := right.(float64)
+
+	_, lstr := left.(string)
+	_, rstr := right.(string)
+
+	_, lbool := left.(bool)
+	_, rbool := right.(bool)
+
+	if lfloat != rfloat || lstr != rstr || lbool != rbool {
+		return interp.reporter.Report(fmt.Sprintf("left and right operands for binary operator '%s' must be of same type", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+
+	return nil
+}
+
+func (interp *Interpreter) checkStringOperands(operator *token.Token, left, right interface{}) error {
+	_, lok := left.(string)
+	if !lok {
+		return interp.reporter.Report(fmt.Sprintf("left operand for binary operator '%s' must be a string", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+	_, rok := right.(string)
+	if !rok {
+		return interp.reporter.Report(fmt.Sprintf("right operand for binary operator '%s' must be a string", operator.Lexeme), "", "", operator.Line, 0, 0)
+	}
+	return nil
+}
+
+func stringify(val interface{}) string {
+	if val == nil {
+		return "null"
+	}
+	return fmt.Sprintf("%#v", val)
+}
+
 func isTruthy(val interface{}) bool {
 	if val == nil {
 		return false
@@ -422,10 +482,10 @@ func isEqual(left, right interface{}) bool {
 		return false
 	}
 
-	return checkBools(left, right) || checkFloats(left, right) || checkStrings(left, right)
+	return compareBools(left, right) || compareFloats(left, right) || compareStrings(left, right)
 }
 
-func checkBools(left, right interface{}) bool {
+func compareBools(left, right interface{}) bool {
 	lval, lok := left.(bool)
 	if !lok {
 		return false
@@ -438,7 +498,7 @@ func checkBools(left, right interface{}) bool {
 	return lval == rval
 }
 
-func checkFloats(left, right interface{}) bool {
+func compareFloats(left, right interface{}) bool {
 	lval, lok := left.(float64)
 	if !lok {
 		return false
@@ -451,7 +511,7 @@ func checkFloats(left, right interface{}) bool {
 	return lval == rval
 }
 
-func checkStrings(left, right interface{}) bool {
+func compareStrings(left, right interface{}) bool {
 	lval, lok := left.(string)
 	if !lok {
 		return false
@@ -462,66 +522,4 @@ func checkStrings(left, right interface{}) bool {
 	}
 
 	return lval == rval
-}
-
-func checkNumberOperand(operator *token.Token, operand interface{}) error {
-	_, ok := operand.(float64)
-	if !ok {
-		return fmt.Errorf("operand for binary operator '%s' must be a number", operator.Lexeme)
-	}
-	return nil
-}
-
-func checkNumberOperands(operator *token.Token, left, right interface{}) error {
-	_, lok := left.(float64)
-	if !lok {
-		return fmt.Errorf("left operand for binary operator '%s' must be a number", operator.Lexeme)
-	}
-	rval, rok := right.(float64)
-	if !rok {
-		return fmt.Errorf("right operand for binary operator '%s' must be a number", operator.Lexeme)
-	}
-
-	// special case
-	if operator.Type == token.Slash && rval == 0.0 {
-		return errors.New("division by zero detected")
-
-	}
-	return nil
-}
-
-func checkEqualityOperands(operator *token.Token, left, right interface{}) error {
-	_, lfloat := left.(float64)
-	_, rfloat := right.(float64)
-
-	_, lstr := left.(string)
-	_, rstr := right.(string)
-
-	_, lbool := left.(bool)
-	_, rbool := right.(bool)
-
-	if lfloat != rfloat || lstr != rstr || lbool != rbool {
-		return fmt.Errorf("left and right operands for binary operator '%s' must be of same type", operator.Lexeme)
-	}
-
-	return nil
-}
-
-func checkStringOperands(operator *token.Token, left, right interface{}) error {
-	_, lok := left.(string)
-	if !lok {
-		return fmt.Errorf("left operand for binary operator '%s' must be a string", operator.Lexeme)
-	}
-	_, rok := right.(string)
-	if !rok {
-		return fmt.Errorf("right operand for binary operator '%s' must be a string", operator.Lexeme)
-	}
-	return nil
-}
-
-func stringify(val interface{}) string {
-	if val == nil {
-		return "null"
-	}
-	return fmt.Sprintf("%#v", val)
 }

@@ -56,7 +56,7 @@ func (s *Scanner) ScanTokens(source string) []*token.Token {
 		s.start = s.current
 		s.scanToken()
 	}
-	s.tokens = append(s.tokens, token.NewToken(token.EOF, "", nil, s.line))
+	s.tokens = append(s.tokens, token.NewToken(token.EOF, "", nil, s.line, source))
 	return s.tokens
 }
 
@@ -152,12 +152,12 @@ func (s *Scanner) peekNext() byte {
 
 func (s *Scanner) addToken(toktype token.TokenType) {
 	text := s.source[s.start:s.current]
-	s.tokens = append(s.tokens, token.NewToken(toktype, text, nil, s.line))
+	s.tokens = append(s.tokens, token.NewToken(toktype, text, nil, s.line, s.source))
 }
 
 func (s *Scanner) addTokenWithValue(toktype token.TokenType, literal interface{}) {
 	text := s.source[s.start:s.current]
-	s.tokens = append(s.tokens, token.NewToken(toktype, text, literal, s.line))
+	s.tokens = append(s.tokens, token.NewToken(toktype, text, literal, s.line, s.source))
 }
 
 func (s *Scanner) addMatchingToken(char byte, doubleToken token.TokenType, singleToken token.TokenType) {

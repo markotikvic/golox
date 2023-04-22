@@ -38,9 +38,9 @@ func (lox *Lox) Exec() {
 
 	switch len(lox.args) {
 	case 1:
-		err = lox.runPrompt()
+		err = lox.RunPrompt()
 	case 2:
-		err = lox.runScript(lox.args[1])
+		err = lox.RunScript(lox.args[1])
 	default:
 		usage()
 		os.Exit(64)
@@ -52,7 +52,7 @@ func (lox *Lox) Exec() {
 	}
 }
 
-func (lox *Lox) runPrompt() error {
+func (lox *Lox) RunPrompt() error {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Printf(">> ")
@@ -61,21 +61,21 @@ func (lox *Lox) runPrompt() error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("run prompt '%s': %w", line, err)
+			return fmt.Errorf("run input: '%s': %w", line, err)
 		}
-		lox.run(line, true)
+		lox.Run(line, true)
 		lox.hadError = false
 	}
 	return nil
 }
 
-func (lox *Lox) runScript(script string) error {
+func (lox *Lox) RunScript(script string) error {
 	source, err := os.ReadFile(script)
 	if err != nil {
 		err = fmt.Errorf("run script: %w", err)
 		return err
 	}
-	lox.run(string(source), false)
+	lox.Run(string(source), false)
 	if lox.hadError {
 		os.Exit(65)
 	}
@@ -85,7 +85,7 @@ func (lox *Lox) runScript(script string) error {
 	return nil
 }
 
-func (lox *Lox) run(source string, repl bool) {
+func (lox *Lox) Run(source string, repl bool) {
 	lox.scanner.Reset()
 	tokens := lox.scanner.ScanTokens(source)
 	parser := ast.NewParser(tokens, lox.reporter)
@@ -99,6 +99,10 @@ func (lox *Lox) run(source string, repl bool) {
 		return
 	}
 	//fmt.Println(ast.NewPrinter().Print(tree))
+}
+
+func (lox *Lox) HadError() bool {
+	return lox.hadError || lox.hadRuntimeError
 }
 
 func usage() {
