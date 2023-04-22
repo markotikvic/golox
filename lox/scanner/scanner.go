@@ -75,8 +75,8 @@ func (s *Scanner) isAtEnd() bool {
 }
 
 func (s *Scanner) scanToken() {
-	c := s.advance()
-	switch c {
+	char := s.advance()
+	switch char {
 	case '(':
 		s.addToken(token.LeftParen)
 	case ')':
@@ -118,12 +118,12 @@ func (s *Scanner) scanToken() {
 		s.addStringToken()
 	default:
 		// keywords detection
-		if unicode.IsDigit(rune(c)) {
+		if unicode.IsDigit(rune(char)) {
 			s.addNumberToken()
-		} else if s.isValidIdentifierStart(c) {
+		} else if s.isValidIdentifierStart(char) {
 			s.addIdentifierToken()
 		} else {
-			s.reporter.Report(fmt.Sprintf("unexpected character: %c", rune(c)), "TODO", s.source, s.line, 0, 0)
+			s.reporter.Report(fmt.Sprintf("unexpected character: %c", rune(char)), "TODO", s.source, s.line, 0, 0)
 		}
 	}
 }

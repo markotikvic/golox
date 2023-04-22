@@ -46,6 +46,9 @@ func (p *Parser) declaration() (statement.Stmt, error) {
 	return p.statement()
 }
 
+// TODO: Add support for anonymous functions:
+// var a = func() <do something> end
+// call_func(func() <do somethin>; end, second_param);
 func (p *Parser) function(kind string) (statement.Stmt, error) {
 	name, err := p.consume(token.Identifier, "expect "+kind+" name")
 	if err != nil {
@@ -369,7 +372,7 @@ func (p *Parser) and() (expression.Expression, error) {
 		return nil, err
 	}
 
-	for p.match(token.Or) {
+	for p.match(token.And) {
 		operator := p.previous()
 		right, err := p.equality()
 		if err != nil {
@@ -472,7 +475,7 @@ func (p *Parser) concatination() (expression.Expression, error) {
 }
 
 func (p *Parser) unary() (expression.Expression, error) {
-	for p.match(token.Bang, token.Minus) {
+	for p.match(token.Bang, token.Minus, token.Not) {
 		operator := p.previous()
 		right, err := p.unary()
 		if err != nil {

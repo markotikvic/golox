@@ -74,6 +74,7 @@ func (interp *Interpreter) execute(stmt statement.Stmt) (interface{}, error) {
 }
 
 func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) (interface{}, error) {
+	// this part forbids shadowing variable names
 	if _, defined := interp.env.Lookup(stmt.Name); defined {
 		err := interp.reporter.Report(fmt.Sprintf("variable named '%s' already exists", stmt.Name.Lexeme), "TODO", "", stmt.Name.Line, 0, 0)
 		return nil, err
@@ -223,7 +224,7 @@ func (interp *Interpreter) evaluateUnaryExpr(expr *expression.Unary) (interface{
 	}
 
 	switch expr.Operator.Type {
-	case token.Bang:
+	case token.Bang, token.Not:
 		return !isTruthy(right), nil
 	case token.Minus:
 		if err := interp.checkNumberOperand(expr.Operator, right); err != nil {
@@ -378,8 +379,7 @@ func (interp *Interpreter) evaluateCallExpr(expr *expression.Call) (interface{},
 
 	function, ok := callee.(LoxCallable)
 	if !ok {
-
-		err = interp.reporter.Report(fmt.Sprintf("'%s' is not a callable function or a class", function), "", "", expr.Paren.Line, 0, 0)
+		err = interp.reporter.Report(fmt.Sprintf("'%v' is not a callable function or a class", callee), "", "", expr.Paren.Line, 0, 0)
 		return nil, err
 	}
 
