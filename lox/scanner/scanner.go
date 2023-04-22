@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"unicode"
 
-	reporter "golox/lox/reporter"
+	"golox/lox/reporter"
 	"golox/lox/token"
 )
 
@@ -123,8 +123,7 @@ func (s *Scanner) scanToken() {
 		} else if s.isValidIdentifierStart(c) {
 			s.addIdentifierToken()
 		} else {
-			err := fmt.Errorf("unexpected character: %c", rune(c))
-			s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
+			s.reporter.Report(fmt.Sprintf("unexpected character: %c", rune(c)), "TODO", s.source, s.line, 0, 0)
 		}
 	}
 }
@@ -179,8 +178,7 @@ func (s *Scanner) skipComment() {
 func (s *Scanner) addStringToken() {
 	s.consumeString()
 	if s.isAtEnd() {
-		err := fmt.Errorf("unterminated string litteral, started at line %d", s.lastDoubleQuoteLine)
-		s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
+		s.reporter.Report(fmt.Sprintf("unterminated string litteral, started at line %d", s.lastDoubleQuoteLine), "TODO", s.source, s.line, 0, 0)
 		return
 	}
 	s.advance()
@@ -210,8 +208,7 @@ func (s *Scanner) addNumberToken() {
 	numStr := s.source[s.start:s.current]
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
-		err := fmt.Errorf("internal error: can't parse float: %s", numStr)
-		s.reporter.ReportAtLocation(err, "TODO", s.source, s.line, 0, 0)
+		s.reporter.Report(fmt.Sprintf("internal error: can't parse float: %s", numStr), "TODO", s.source, s.line, 0, 0)
 		return
 	}
 	s.addTokenWithValue(token.Number, num)

@@ -76,8 +76,7 @@ func (interp *Interpreter) execute(stmt statement.Stmt) (interface{}, error) {
 
 func (interp *Interpreter) executeVarStmt(stmt *statement.VarStmt) (interface{}, error) {
 	if _, defined := interp.env.Lookup(stmt.Name); defined {
-		err := fmt.Errorf("variable named '%s' already exists", stmt.Name.Lexeme)
-		interp.reporter.ReportAtLocation(err, "TODO", "", stmt.Name.Line, 0, 0)
+		err := interp.reporter.Report(fmt.Sprintf("variable named '%s' already exists", stmt.Name.Lexeme), "TODO", "", stmt.Name.Line, 0, 0)
 		return nil, err
 	}
 
@@ -115,7 +114,7 @@ func (interp *Interpreter) executeExprStmt(stmt *statement.ExpressionStmt) (inte
 }
 
 func (interp *Interpreter) executeFuncStmt(stmt *statement.FunctionStmt) (interface{}, error) {
-	function := NewLoxFunction(stmt)
+	function := NewLoxFunction(stmt, interp.env)
 	interp.env.Define(stmt.Name.Lexeme, function)
 	return nil, nil
 }
@@ -229,7 +228,7 @@ func (interp *Interpreter) evaluateUnaryExpr(expr *expression.Unary) (interface{
 		return !isTruthy(right), nil
 	case token.Minus:
 		if err := checkNumberOperand(expr.Operator, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			break
 		}
 		return -right.(float64), nil
@@ -251,31 +250,31 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 	switch expr.Operator.Type {
 	case token.Greater:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) > right.(float64), nil
 	case token.GreaterEqual:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) >= right.(float64), nil
 	case token.Less:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) < right.(float64), nil
 	case token.LessEqual:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) <= right.(float64), nil
 	case token.EqualEqual:
 		if err := checkEqualityOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return isEqual(left, right), nil
@@ -283,31 +282,31 @@ func (interp *Interpreter) evaluateBinaryExpr(expr *expression.Binary) (interfac
 		return !isEqual(left, right), nil
 	case token.Minus:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) - right.(float64), nil
 	case token.Plus:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) + right.(float64), nil
 	case token.Slash:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) / right.(float64), nil
 	case token.Star:
 		if err := checkNumberOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(float64) * right.(float64), nil
 	case token.DotDot:
 		if err := checkStringOperands(expr.Operator, left, right); err != nil {
-			interp.reporter.ReportAtLocation(err, "TODO", "", expr.Operator.Line, 0, 0)
+			interp.reporter.Report(err.Error(), "TODO", "", expr.Operator.Line, 0, 0)
 			return nil, err
 		}
 		return left.(string) + right.(string), nil
@@ -381,14 +380,13 @@ func (interp *Interpreter) evaluateCallExpr(expr *expression.Call) (interface{},
 
 	function, ok := callee.(LoxCallable)
 	if !ok {
-		err = fmt.Errorf("'%s' is not a callable function or a class", function)
-		interp.reporter.ReportAtLocation(err, "TODO", "", expr.Paren.Line, 0, 0)
+
+		err = interp.reporter.Report(fmt.Sprintf("'%s' is not a callable function or a class", function), "", "", expr.Paren.Line, 0, 0)
 		return nil, err
 	}
 
 	if len(args) != function.Arity() {
-		err = fmt.Errorf("expect %d arguments but got %d", function.Arity(), len(args))
-		interp.reporter.ReportAtLocation(err, "TODO", "", expr.Paren.Line, 0, 0)
+		err = interp.reporter.Report(fmt.Sprintf("expect %d arguments but got %d", function.Arity(), len(args)), "", "", expr.Paren.Line, 0, 0)
 		return nil, err
 	}
 

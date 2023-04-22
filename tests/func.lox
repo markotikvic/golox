@@ -1,0 +1,21 @@
+func hello(first, last)
+	print "hello".." "..first.." "..last;
+end
+
+hello("go", "lox");
+
+func retval(arg1, arg2)
+  print arg1;
+  print arg2;
+end
+
+func fib(n)
+  if n <= 1 then
+    return n;
+  end
+
+  return fib(n - 2) + fib(n - 1);
+end
+
+print fib(5);
+retval("string", 2);

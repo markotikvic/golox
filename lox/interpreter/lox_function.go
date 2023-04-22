@@ -8,16 +8,18 @@ import (
 
 type LoxFunction struct {
 	declaration *statement.FunctionStmt
+	closure     *environment.Environment
 }
 
-func NewLoxFunction(decl *statement.FunctionStmt) *LoxFunction {
+func NewLoxFunction(decl *statement.FunctionStmt, closure *environment.Environment) *LoxFunction {
 	return &LoxFunction{
 		declaration: decl,
+		closure:     closure,
 	}
 }
 
 func (f *LoxFunction) Call(interp *Interpreter, args []interface{}) (interface{}, error) {
-	env := environment.NewEnvironment(interp.globals)
+	env := environment.NewEnvironment(f.closure)
 	// Interpreter.evaluateCallExpr() already checks if the number of arguments match
 	for i := 0; i < len(f.declaration.Params); i++ {
 		env.Define(f.declaration.Params[i].Lexeme, args[i])

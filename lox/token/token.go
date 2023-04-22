@@ -108,12 +108,12 @@ var tokenTypeNames = []string{
 	"EOF",
 }
 
-func (tt TokenType) String() string {
-	return tokenTypeNames[tt]
+func (t TokenType) String() string {
+	return tokenTypeNames[t]
 }
 
-func IsKeyword(tokenType TokenType) bool {
-	switch tokenType {
+func (t TokenType) IsKeyword() bool {
+	switch t {
 	case And,
 		Or,
 		Class,

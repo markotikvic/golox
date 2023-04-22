@@ -3,16 +3,18 @@ package statement
 import "golox/lox/expression"
 
 type IfStmt struct {
-	Condition  expression.Expression
-	ThenBranch Stmt
-	ElseBranch Stmt
+	Condition    expression.Expression
+	ThenBranch   Stmt
+	ElifBranches []Stmt
+	ElseBranch   Stmt
 }
 
-func NewIfStmt(condition expression.Expression, thenBranch, elseBranch Stmt) *IfStmt {
+func NewIfStmt(condition expression.Expression, thenBranch Stmt, elifBranches []Stmt, elseBranch Stmt) *IfStmt {
 	return &IfStmt{
-		Condition:  condition,
-		ThenBranch: thenBranch,
-		ElseBranch: elseBranch,
+		Condition:    condition,
+		ThenBranch:   thenBranch,
+		ElifBranches: elifBranches,
+		ElseBranch:   elseBranch,
 	}
 }
 

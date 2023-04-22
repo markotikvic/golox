@@ -59,8 +59,7 @@ func (p *Parser) function(kind string) (statement.Stmt, error) {
 	if !p.check(token.RightParen) {
 		for {
 			if len(params) >= 255 {
-				err = errors.New("can't have more than 255 function parameters")
-				p.reporter.ReportAtLocation(err, "", "", p.peek().Line, 0, 0)
+				err = p.reporter.Report("can't have more than 255 function parameters", "", "", p.peek().Line, 0, 0)
 				return nil, err
 			}
 			param, err := p.consume(token.Identifier, "expect parameter name")
@@ -120,15 +119,7 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	if p.match(token.While) {
 		return p.whileStmt()
 	}
-	// TODO: elif
-	//	if p.match(token.Elif) {
-	//		statements, err := p.block(token.End, token.Elif)
-	//		if err != nil {
-	//			return nil, err
-	//		}
-	//		return statement.NewBlockStmt(statements), nil
-	//	}
-	// loops, if-then/else
+	// loops
 	if p.match(token.Do) {
 		statements, err := p.block(token.End)
 		if err != nil {
@@ -147,10 +138,10 @@ func (p *Parser) statement() (statement.Stmt, error) {
 	return p.expressionStmt()
 }
 
-func (p *Parser) block(limit token.TokenType) ([]statement.Stmt, error) {
+func (p *Parser) block(limits ...token.TokenType) ([]statement.Stmt, error) {
 	statements := make([]statement.Stmt, 0)
 
-	for !p.check(limit) && !p.isAtEnd() {
+	for !p.check(limits...) && !p.isAtEnd() {
 		decl, err := p.declaration()
 		if err != nil {
 			return nil, err
@@ -158,7 +149,8 @@ func (p *Parser) block(limit token.TokenType) ([]statement.Stmt, error) {
 		statements = append(statements, decl)
 	}
 
-	if _, err := p.consume(limit, fmt.Sprintf("expect '%s' after a block", limit)); err != nil {
+	match := p.peek().Type
+	if _, err := p.consume(match, fmt.Sprintf("expect '%s' after a block", match)); err != nil {
 		return nil, err
 	}
 
@@ -174,15 +166,30 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 
-	// FIXME: if block can end with 'end' or 'else' (or 'elif' in the future)
-	thenStatements, err := p.block(token.End)
+	thenStatements, err := p.block(token.Elif, token.Else, token.End)
 	if err != nil {
 		return nil, err
 	}
 	thenBranch := statement.NewBlockStmt(thenStatements)
 
-	var elseBranch statement.Stmt = nil
-	if p.match(token.Else) {
+	var (
+		elifBranches []statement.Stmt
+		elseBranch   statement.Stmt
+	)
+
+	// TODO
+	for p.previous().Type == token.Elif {
+		panic("TODO")
+		/*
+			elifBlock, err := p.block(token.Elif, token.Else, token.End)
+			if err != nil {
+				return nil, err
+			}
+			elifBranches = append(elifBranches, statement.NewBlockStmt(elifBlock))
+		*/
+	}
+
+	if p.previous().Type == token.Else {
 		elseStatements, err := p.block(token.End)
 		if err != nil {
 			return nil, err
@@ -190,11 +197,11 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 		elseBranch = statement.NewBlockStmt(elseStatements)
 	}
 
-	//	if _, err = p.consume(token.End, "expect 'end' after branch body"); err != nil {
-	//		return nil, err
-	//	}
+	if p.previous().Type != token.End {
+		return nil, errors.New("expected 'end', 'elif' or 'else' after if statement body")
+	}
 
-	return statement.NewIfStmt(condition, thenBranch, elseBranch), nil
+	return statement.NewIfStmt(condition, thenBranch, elifBranches, elseBranch), nil
 }
 
 func (p *Parser) printStmt() (statement.Stmt, error) {
@@ -334,7 +341,7 @@ func (p *Parser) assignment() (expression.Expression, error) {
 			return expression.NewAssign(name, value), nil
 		}
 
-		p.reporter.ReportAtLocation(errors.New("invalid assignment target"), "", "", equals.Line, 0, 0)
+		p.reporter.Report("invalid assignment target", "", "", equals.Line, 0, 0)
 	}
 	return expr, nil
 }
@@ -554,13 +561,11 @@ func (p *Parser) primary() (expression.Expression, error) {
 	tok := p.peek()
 	prev := p.previous()
 	if prev == nil {
-		err := fmt.Errorf("unknown expression '%s'", tok.Lexeme)
-		p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
+		err := p.reporter.Report(fmt.Sprintf("unknown expression '%s'", tok.Lexeme), "", "", tok.Line, 0, 0)
 		return nil, err
 	}
 
-	err := fmt.Errorf("unknown expression '%s' after '%s'", tok.Lexeme, prev.Lexeme)
-	p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
+	err := p.reporter.Report(fmt.Sprintf("unknown expression '%s' after '%s'", tok.Lexeme, prev.Lexeme), "", "", tok.Line, 0, 0)
 	return nil, err
 }
 
@@ -572,12 +577,11 @@ func (p *Parser) consume(limit token.TokenType, errorMsg string) (*token.Token, 
 	var err error
 	tok := p.peek()
 	if tok.Type == token.EOF {
-		err = fmt.Errorf("at end: %s", errorMsg)
+		err = p.reporter.Report(fmt.Sprintf("at end: %s", errorMsg), "", "", tok.Line, 0, 0)
 	} else {
-		err = fmt.Errorf("at '%s': %s", tok.Lexeme, errorMsg)
+		err = p.reporter.Report(fmt.Sprintf("at '%s': %s", tok.Lexeme, errorMsg), "", "", tok.Line, 0, 0)
 	}
 
-	p.reporter.ReportAtLocation(err, "", "", tok.Line, 0, 0)
 	return nil, err
 }
 
@@ -594,12 +598,18 @@ func (p *Parser) match(types ...token.TokenType) bool {
 	//end
 }
 
-func (p *Parser) check(tokenType token.TokenType) bool {
+func (p *Parser) check(tokenTypes ...token.TokenType) bool {
 	if p.isAtEnd() {
 		return false
 	}
 
-	return p.peek().Type == tokenType
+	for _, tok := range tokenTypes {
+		if p.peek().Type == tok {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *Parser) advance() *token.Token {
@@ -631,7 +641,7 @@ func (p *Parser) synchronize() {
 		if p.previous().Type == token.Semicolon {
 			return
 		}
-		if token.IsKeyword(p.peek().Type) {
+		if p.peek().Type.IsKeyword() {
 			return
 		}
 		p.advance()
