@@ -48,7 +48,7 @@ func (p *Parser) declaration() (statement.Stmt, error) {
 
 // TODO: Add support for anonymous functions:
 // var a = func() <do something> end
-// call_func(func() <do somethin>; end, second_param);
+// call_func(func() <do something>; end, second_param);
 func (p *Parser) function(kind string) (statement.Stmt, error) {
 	name, err := p.consume(token.Identifier, "expect "+kind+" name")
 	if err != nil {
