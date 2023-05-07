@@ -36,6 +36,9 @@ func (p *Parser) Parse() ([]statement.Stmt, error) {
 }
 
 func (p *Parser) declaration() (statement.Stmt, error) {
+	if p.match(token.Class) {
+		return p.classDeclaration()
+	}
 	if p.match(token.Func) {
 		return p.function("function")
 	}
@@ -46,10 +49,32 @@ func (p *Parser) declaration() (statement.Stmt, error) {
 	return p.statement()
 }
 
+func (p *Parser) classDeclaration() (*statement.ClassStmt, error) {
+	name, err := p.consume(token.Identifier, "expect class name")
+	if err != nil {
+		return nil, err
+	}
+
+	methods := make([]*statement.FunctionStmt, 10)
+	for !p.check(token.End) && !p.isAtEnd() {
+		fn, err := p.function("method")
+		if err != nil {
+			return nil, err
+		}
+		methods = append(methods, fn)
+	}
+
+	if _, err = p.consume(token.End, "expect 'end' after class definition"); err != nil {
+		return nil, err
+	}
+
+	return statement.NewClassStmt(name, methods), nil
+}
+
 // TODO: Add support for anonymous functions:
 // var a = func() <do something> end
 // call_func(func() <do something>; end, second_param);
-func (p *Parser) function(kind string) (statement.Stmt, error) {
+func (p *Parser) function(kind string) (*statement.FunctionStmt, error) {
 	name, err := p.consume(token.Identifier, "expect "+kind+" name")
 	if err != nil {
 		return nil, err
@@ -61,7 +86,7 @@ func (p *Parser) function(kind string) (statement.Stmt, error) {
 	if !p.check(token.RightParen) {
 		for {
 			if len(params) >= 255 {
-				err = p.reporter.Report("can't have more than 255 function parameters", "", "", p.peek().Line, 0, 0)
+				err = p.reporter.Report("can't have more than 255 function parameters", p.peek())
 				return nil, err
 			}
 			param, err := p.consume(token.Identifier, "expect parameter name")
@@ -200,7 +225,7 @@ func (p *Parser) ifStmt() (statement.Stmt, error) {
 	}
 
 	if p.previous().Type != token.End {
-		return nil, p.reporter.Report("expected 'end', 'elif' or 'else' after if statement body", "", "", p.previous().Line, 0, 0)
+		return nil, p.reporter.Report("expected 'end', 'elif' or 'else' after if statement body", p.previous())
 	}
 
 	return statement.NewIfStmt(condition, thenBranch, elifBranches, elseBranch), nil
@@ -240,7 +265,7 @@ func (p *Parser) whileStmt() (statement.Stmt, error) {
 		return nil, err
 	}
 	if !p.check(token.Do) {
-		return nil, p.reporter.Report("expect 'do' after while conditition", "", "", p.peek().Line, 0, 0)
+		return nil, p.reporter.Report("expect 'do' after while conditition", p.peek())
 	}
 
 	body, err := p.statement()
@@ -287,7 +312,7 @@ func (p *Parser) forStmt() (statement.Stmt, error) {
 			return nil, err
 		}
 		if !p.check(token.Do) {
-			return nil, p.reporter.Report("expect 'do' after for loop increment", "", "", p.peek().Line, 0, 0)
+			return nil, p.reporter.Report("expect 'do' after for loop increment", p.peek())
 		}
 	}
 
@@ -343,7 +368,7 @@ func (p *Parser) assignment() (expression.Expression, error) {
 			return expression.NewAssign(name, value), nil
 		}
 
-		p.reporter.Report("invalid assignment target", "", "", equals.Line, 0, 0)
+		p.reporter.Report("invalid assignment target", equals)
 	}
 	return expr, nil
 }
@@ -510,7 +535,7 @@ func (p *Parser) finishCall(callee expression.Expression) (expression.Expression
 	if !p.check(token.RightParen) {
 		for {
 			if len(arguments) >= 255 {
-				return nil, p.reporter.Report("maximum number of function arguments (255) exceeded", "", "", p.previous().Line, 0, 0)
+				return nil, p.reporter.Report("maximum number of function arguments (255) exceeded", p.previous())
 			}
 			expr, err := p.expression()
 			if err != nil {
@@ -563,11 +588,11 @@ func (p *Parser) primary() (expression.Expression, error) {
 	tok := p.peek()
 	prev := p.previous()
 	if prev == nil {
-		err := p.reporter.Report(fmt.Sprintf("unknown expression '%s'", tok.Lexeme), "", "", tok.Line, 0, 0)
+		err := p.reporter.Report(fmt.Sprintf("unknown expression '%s'", tok.Lexeme), tok)
 		return nil, err
 	}
 
-	err := p.reporter.Report(fmt.Sprintf("unknown expression '%s' after '%s'", tok.Lexeme, prev.Lexeme), "", "", tok.Line, 0, 0)
+	err := p.reporter.Report(fmt.Sprintf("unknown expression '%s' after '%s'", tok.Lexeme, prev.Lexeme), tok)
 	return nil, err
 }
 
@@ -577,7 +602,7 @@ func (p *Parser) consume(limit token.TokenType, errorMsg string) (*token.Token, 
 	}
 
 	tok := p.peek()
-	err := p.reporter.Report(fmt.Sprintf("at '%s': %s", tok.Lexeme, errorMsg), "", "", tok.Line, 0, 0)
+	err := p.reporter.Report(fmt.Sprintf("at '%s': %s", tok.Lexeme, errorMsg), tok)
 
 	return nil, err
 }

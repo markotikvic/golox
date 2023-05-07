@@ -147,6 +147,7 @@ type Token struct {
 	Line    int
 	Lexeme  string
 	Source  string
+	File    string
 	Literal interface{}
 }
 
@@ -161,5 +162,6 @@ func NewToken(kind TokenType, lexeme string, literal interface{}, line int, sour
 		Literal: literal,
 		Line:    line,
 		Source:  source,
+		File:    "", // TODO
 	}
 }

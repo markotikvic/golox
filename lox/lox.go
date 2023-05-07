@@ -9,6 +9,7 @@ import (
 	"golox/lox/ast"
 	"golox/lox/interpreter"
 	reporter "golox/lox/reporter"
+	"golox/lox/resolver"
 	"golox/lox/scanner"
 )
 
@@ -89,12 +90,19 @@ func (lox *Lox) Run(source string, repl bool) {
 	lox.scanner.Reset()
 	tokens := lox.scanner.ScanTokens(source)
 	parser := ast.NewParser(tokens, lox.reporter)
-	tree, err := parser.Parse()
+	statements, err := parser.Parse()
 	if err != nil {
 		lox.hadError = true
 		return
 	}
-	if err = lox.interp.Interpret(tree, repl); err != nil {
+
+	resolver := resolver.New(lox.interp, lox.reporter)
+	if err = resolver.Resolve(statements); err != nil {
+		lox.hadError = true
+		return
+	}
+
+	if err = lox.interp.Interpret(statements, repl); err != nil {
 		lox.hadRuntimeError = true
 		return
 	}
