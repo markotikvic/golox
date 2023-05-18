@@ -366,6 +366,8 @@ func (p *Parser) assignment() (expression.Expression, error) {
 		if v, ok := expr.(*expression.Variable); ok {
 			name := v.Name
 			return expression.NewAssign(name, value), nil
+		} else if v, ok := expr.(*expression.Get); ok {
+			return expression.NewSet(v.Object, v.Name, value), nil
 		}
 
 		p.reporter.Report("invalid assignment target", equals)
@@ -523,6 +525,12 @@ func (p *Parser) call() (expression.Expression, error) {
 			if err != nil {
 				return nil, err
 			}
+		} else if p.match(token.Dot) {
+			name, err := p.consume(token.Identifier, "expect property name after '.'")
+			if err != nil {
+				return nil, err
+			}
+			expr = expression.NewGet(expr, name)
 		} else {
 			break
 		}

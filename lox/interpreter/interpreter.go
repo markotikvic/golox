@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"errors"
 	"fmt"
 	"golox/lox/environment"
 	"golox/lox/expression"
@@ -222,6 +223,10 @@ func (interp *Interpreter) evaluate(expr expression.Expression) (interface{}, er
 		return interp.evaluateLogicalExpr(v)
 	case *expression.Call:
 		return interp.evaluateCallExpr(v)
+	case *expression.Get:
+		return interp.evaluateGetExpr(v)
+	case *expression.Set:
+		return interp.evaluateSetExpr(v)
 	default:
 		fmt.Println("unknown expression type")
 	}
@@ -405,6 +410,39 @@ func (interp *Interpreter) evaluateCallExpr(expr *expression.Call) (interface{},
 
 	return function.Call(interp, args)
 
+}
+
+func (interp *Interpreter) evaluateGetExpr(expr *expression.Get) (interface{}, error) {
+	object, err := interp.evaluate(expr.Object)
+	if err != nil {
+		return nil, err
+	}
+	if loxInstance, ok := object.(*LoxInstance); ok {
+		v, err := loxInstance.Get(expr.Name)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
+	}
+
+	return nil, errors.New("only class instances have properties that can be accessed")
+}
+
+func (interp *Interpreter) evaluateSetExpr(expr *expression.Set) (interface{}, error) {
+	object, err := interp.evaluate(expr.Object)
+	if err != nil {
+		return nil, err
+	}
+	if loxInstance, ok := object.(*LoxInstance); ok {
+		v, err := interp.evaluate(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		loxInstance.Set(expr.Name, v)
+		return v, nil
+	}
+
+	return nil, errors.New("only class instances have properties that can be accessed")
 }
 
 func (interp *Interpreter) setEnvironment(env *environment.Environment) {

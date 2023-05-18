@@ -48,7 +48,7 @@ func (r *Resolver) resolveBlockStmt(stmt *statement.BlockStmt) (interface{}, err
 
 func (r *Resolver) resolveStmts(statements []statement.Stmt) (interface{}, error) {
 	for _, s := range statements {
-		if err := r.resolveStmt(s); err != nil {
+		if err := r.resolve(s); err != nil {
 			return nil, err
 		}
 	}
@@ -82,7 +82,7 @@ func (r *Resolver) resolveVarStmt(stmt *statement.VarStmt) error {
 		return err
 	}
 	if stmt.Initializer != nil {
-		if err := r.resolveExpr(stmt.Initializer); err != nil {
+		if err := r.resolve(stmt.Initializer); err != nil {
 			return err
 		}
 	}
@@ -123,18 +123,18 @@ func (r *Resolver) resolveFunction(function *statement.FunctionStmt, funcType Fu
 }
 
 func (r *Resolver) resolveExpressionStmt(stmt *statement.ExpressionStmt) error {
-	return r.resolveExpr(stmt.Expression)
+	return r.resolve(stmt.Expression)
 }
 
 func (r *Resolver) resolveIfStmt(stmt *statement.IfStmt) error {
-	if err := r.resolveExpr(stmt.Condition); err != nil {
+	if err := r.resolve(stmt.Condition); err != nil {
 		return err
 	}
-	if err := r.resolveStmt(stmt.ThenBranch); err != nil {
+	if err := r.resolve(stmt.ThenBranch); err != nil {
 		return err
 	}
 	if stmt.ElseBranch != nil {
-		if err := r.resolveStmt(stmt.ElseBranch); err != nil {
+		if err := r.resolve(stmt.ElseBranch); err != nil {
 			return err
 		}
 	}
@@ -142,7 +142,7 @@ func (r *Resolver) resolveIfStmt(stmt *statement.IfStmt) error {
 }
 
 func (r *Resolver) resolvePrintStmt(stmt *statement.PrintStmt) error {
-	return r.resolveExpr(stmt.Expression)
+	return r.resolve(stmt.Expression)
 }
 
 func (r *Resolver) resolveReturnStmt(stmt *statement.ReturnStmt) error {
@@ -150,16 +150,16 @@ func (r *Resolver) resolveReturnStmt(stmt *statement.ReturnStmt) error {
 		return r.reporter.Report("can't return from top-level code (outside of function)", stmt.Keyword)
 	}
 	if stmt.Value != nil {
-		return r.resolveExpr(stmt.Value)
+		return r.resolve(stmt.Value)
 	}
 	return nil
 }
 
 func (r *Resolver) resolveWhileStmt(stmt *statement.WhileStmt) error {
-	if err := r.resolveExpr(stmt.Condition); err != nil {
+	if err := r.resolve(stmt.Condition); err != nil {
 		return err
 	}
-	if err := r.resolveStmt(stmt.Body); err != nil {
+	if err := r.resolve(stmt.Body); err != nil {
 		return err
 	}
 	return nil
@@ -200,6 +200,16 @@ func (r *Resolver) peekScope() map[string]bool {
 	return r.scopes[len(r.scopes)-1]
 }
 
+func (r *Resolver) resolve(resolvable interface{}) error {
+	switch t := resolvable.(type) {
+	case expression.Expression:
+		return r.resolveExpr(t)
+	case statement.Stmt:
+		return r.resolveStmt(t)
+	}
+	return nil
+}
+
 func (r *Resolver) resolveExpr(expr expression.Expression) error {
 	switch v := expr.(type) {
 	case *expression.Variable:
@@ -218,6 +228,10 @@ func (r *Resolver) resolveExpr(expr expression.Expression) error {
 		return r.resolveLogicalExpr(v)
 	case *expression.Unary:
 		return r.resolveUnaryExpr(v)
+	case *expression.Get:
+		return r.resolveGetExpr(v)
+	case *expression.Set:
+		return r.resolveSetExpr(v)
 	}
 	return nil
 }
@@ -230,7 +244,7 @@ func (r *Resolver) resolveVarExpr(expr *expression.Variable) error {
 }
 
 func (r *Resolver) resolveAssignExpr(expr *expression.Assign) error {
-	if err := r.resolveExpr(expr.Value); err != nil {
+	if err := r.resolve(expr.Value); err != nil {
 		return err
 	}
 	return r.resolveLocal(expr, expr.Name)
@@ -247,22 +261,22 @@ func (r *Resolver) resolveLocal(expr expression.Expression, name *token.Token) e
 }
 
 func (r *Resolver) resolveBinaryExpr(expr *expression.Binary) error {
-	if err := r.resolveExpr(expr.Left); err != nil {
+	if err := r.resolve(expr.Left); err != nil {
 		return err
 	}
-	return r.resolveExpr(expr.Right)
+	return r.resolve(expr.Right)
 }
 
 func (r *Resolver) resolveCallExpr(expr *expression.Call) error {
-	r.resolveExpr(expr.Callee)
+	r.resolve(expr.Callee)
 	for _, arg := range expr.Args {
-		r.resolveExpr(arg)
+		r.resolve(arg)
 	}
 	return nil
 }
 
 func (r *Resolver) resolveGroupingExpr(expr *expression.Grouping) error {
-	return r.resolveExpr(expr.Expr)
+	return r.resolve(expr.Expr)
 }
 
 func (r *Resolver) resolveLitteralExpr(expr *expression.Literal) error {
@@ -270,14 +284,28 @@ func (r *Resolver) resolveLitteralExpr(expr *expression.Literal) error {
 }
 
 func (r *Resolver) resolveLogicalExpr(expr *expression.Logical) error {
-	if err := r.resolveExpr(expr.Left); err != nil {
+	if err := r.resolve(expr.Left); err != nil {
 		return err
 	}
-	return r.resolveExpr(expr.Right)
+	return r.resolve(expr.Right)
 }
 
 func (r *Resolver) resolveUnaryExpr(expr *expression.Unary) error {
-	return r.resolveExpr(expr.Right)
+	return r.resolve(expr.Right)
+}
+
+func (r *Resolver) resolveGetExpr(expr *expression.Get) error {
+	return r.resolve(expr.Object)
+}
+
+func (r *Resolver) resolveSetExpr(expr *expression.Set) error {
+	if err := r.resolve(expr.Value); err != nil {
+		return err
+	}
+	if err := r.resolve(expr.Object); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *Resolver) beginScope() {

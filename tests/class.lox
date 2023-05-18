@@ -1,0 +1,6 @@
+class Bagel
+end
+
+var b = Bagel();
+
+print b;
